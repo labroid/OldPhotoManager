@@ -1,0 +1,21 @@
+Number of file sizes measured:  4800
+Elapsed Time for file sizes: 2.29399991035
+Top duplicate nodes(found in 0.0250000953674 seconds):
+Largest node, rank: 1
+C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000\000408 Boys Portrait\Boys2.bmp 2.353206 MB
+C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000 Album\000408 Boys Portrait\Boys2.bmp 2.353206 MB
+Largest node, rank: 2
+C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000 Album\000408 Boys Portrait\Boys1.bmp 1.471542 MB
+C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000\000408 Boys Portrait\Boys1.bmp 1.471542 MB
+Largest node, rank: 3
+C:\Users\scott_jackson\Pictures\Blackberry Dump\IMG00029-20100702-1128.jpg 0.878715 MB
+C:\Users\scott_jackson\Pictures\IMG00029-20100702-1128.jpg 0.878715 MB
+
+MD5sums for C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000\000408 Boys Portrait\Boys2.bmp took 0.0139999389648
+MD5sums for C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000 Album\000408 Boys Portrait\Boys2.bmp took 0.0130000114441
+
+d1f4f1812cf049d4e60a014f070a0942 C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000\000408 Boys Portrait\Boys2.bmp
+d1f4f1812cf049d4e60a014f070a0942 C:\Users\scott_jackson\Pictures\Photos to process on Cornell Trip\2000 Album\000408 Boys Portrait\Boys2.bmp
+
+Set of resulting MD5s ['d1f4f1812cf049d4e60a014f070a0942', 'd1f4f1812cf049d4e60a014f070a0942']
+Both directories have equal checksums!
