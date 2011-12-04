@@ -3,10 +3,11 @@ Created on Oct 21, 2011
 
 @author: scott_jackson
 '''
+import sys
 import os.path
 import pprint
 import stopwatch
-from photoFunctions import isNodeInArchive
+from photoFunctions import isNodeInArchive, getTags, getTimestampFromTags
 from photoData import photoData
 
 #import photoUnitData
@@ -18,6 +19,22 @@ def main():
     print "Number of file sizes measured: ", len(archive.data)
     print "Elapsed Time for file sizes:",timer.read()
     print ""
+    
+    print "Extracting tags"
+    timer.start()
+    for file in archive.data.keys():
+        if not archive.data[file].dirflag:
+            getTags(file)
+    print "Tags extracted.  Elapsed time:", timer.read()
+    
+    print "Converting timestamps"
+    timer.start()
+    for file in archive.data.keys():
+        if not archive.data[file].dirflag:
+            getTimestampFromTags(archive.data[file].tags)
+    print "time tags converted in:", timer.read()
+    
+    sys.exit(0)
     
     print "Zero-length files:"
     zeroFiles = archive.listZeroLengthFiles()

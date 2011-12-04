@@ -37,6 +37,7 @@ Finding if a node is represented in an archive
 import os
 import datetime
 import EXIF
+from test.test_pep277 import filenames
 
 def isNodeInArchive(archive, node):
     for root, dirs, files in os.walk(node.path, topdown=False):
@@ -44,8 +45,32 @@ def isNodeInArchive(archive, node):
             filename = os.path.join(root,file)
             node.data[filename].tags = getTags(filename)
             node.data[filename].timestamp = getTimestampFromTags(node.data[filename].tags)
+            timeCandidates = findSameTimestamp(archive, node.data[filename].timestamp)
+            print "For candidate",filename,"with time",node.data[filename].timestamp,"candidates are:"
+            print timeCandidates
             
+def findSameTimestamp(collection, targetTime):
+    candidateList = []
+#    filterstring = os.path.sep + targetTime.strftime('%Y') + os.path.sep + targetTime.strftime('%Y%m%d')
+#    filterstring = os.path.sep + targetTime.strftime('%Y%m%d')
+#    print "filterstring=",filterstring
+    for filename in collection.data.keys():
+        print filename, collection.data[filename].timestamp, targetTime
+        if collection.data[filename].timestamp == targetTime:
+            candidateList.append(filename)
+
+#        if filterstring in filename:
+#            candidateList.append(filename)
+    return(candidateList)
             
+
+    candidateFiles = filter(lambda x:filterstring in x, collection.data.keys())
+    print "candidateFiles=",candidateFiles
+    for file in candidateFiles:
+        print "Candidate:",file
+    
+    
+                
 def getTags(filename):    
     try:
         fp = open(filename,'rb')
