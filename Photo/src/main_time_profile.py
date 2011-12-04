@@ -9,18 +9,21 @@ import pprint
 import stopwatch
 from photoFunctions import isNodeInArchive, getTags, getTimestampFromTags
 from photoData import photoData
+from pickle import Pickler
 
 #import photoUnitData
 
 def main():
     timer = stopwatch.stopWatch()
     print "Initializing photo database..."
+    sys.stdout.flush()
     archive = photoData("C:\Users\scott_jackson\Pictures")
     print "Number of file sizes measured: ", len(archive.data)
     print "Elapsed Time for file sizes:",timer.read()
     print ""
     
     print "Extracting tags"
+    sys.stdout.flush()
     timer.start()
     for file in archive.data.keys():
         if not archive.data[file].dirflag:
@@ -28,20 +31,28 @@ def main():
     print "Tags extracted.  Elapsed time:", timer.read()
     
     print "Converting timestamps"
+    sys.stdout.flush()
     timer.start()
     for file in archive.data.keys():
         if not archive.data[file].dirflag:
             getTimestampFromTags(archive.data[file].tags)
     print "time tags converted in:", timer.read()
     
-    sys.exit(0)
+    timer.start()
+    print "Pickling results:"
+    sys.stdout.flush()
+    pickle_fp = open("C:\Users\scott_jackson\Desktop\PhotoPickle.txt","w")
+    pickle = Pickler(pickle_fp)
+    pickle.dump(archive)
+    print "Pickle done.  Elapsed time:",timer.read()
     
     print "Zero-length files:"
     zeroFiles = archive.listZeroLengthFiles()
     for names in zeroFiles:
         print names
     print ""
-        
+    sys.exit(0)  
+          
     timer.start()
     sameSizedTrees = archive.listSameSizedTrees()
     print "Top duplicate nodes(found in", timer.read(),"seconds):"
