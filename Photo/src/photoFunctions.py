@@ -37,7 +37,6 @@ Finding if a node is represented in an archive
 import os
 import datetime
 import EXIF
-from test.test_pep277 import filenames
 
 def isNodeInArchive(archive, node):
     for root, dirs, files in os.walk(node.path, topdown=False):

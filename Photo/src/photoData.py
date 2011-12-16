@@ -128,14 +128,19 @@ class photoData:
                 duplicateSizes.add(s[1].size)
             else:
                 seen.add(s[1].size)
+    #Sort list in order of size and remove from list children of nodes
+        duplicateSizes = sorted(duplicateSizes, reverse = True)
+    #Need to figure out how to remove children of a duplicate node
+            
     #Now build a nested list collecting file names of duplicates
         self.dupSizeList = []
-        for dups in sorted(duplicateSizes, reverse = True)[0:10]:
+        for dups in duplicateSizes[0:10]:
             dupeSubList = []
             for n in validSizes:
                 if n[1].size == dups:
                     dupeSubList.append(n[0])
             self.dupSizeList.append(dupeSubList)
+                    
         return()
     
     def listSameSizedTrees(self):

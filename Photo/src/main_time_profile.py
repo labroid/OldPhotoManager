@@ -5,19 +5,41 @@ Created on Oct 21, 2011
 '''
 import sys
 import os.path
+import socket
 import pprint
 import stopwatch
 from photoFunctions import isNodeInArchive, getTags, getTimestampFromTags
 from photoData import photoData
 from pickle import Pickler
 
+#Machine names and paths
+SMITHERS_HOSTNAME = "smithers"
+SMITHERS_ARCHIVE = "/home/shared/Photos/2011"
+SMITHERS_ARCHIVE_PICKLE = "/home/scott/PhotoPythonFiles/pickle.txt"
+LAPTOP_HOSTNAME = "4DAA1001312"
+LAPTOP_ARCHIVE = "C:\Users\scott_jackson\Pictures"
+LAPTOP_ARCHIVE_PICKLE = "C:\Users\scott_jackson\Desktop\PhotoPickle.txt"
+
+
 #import photoUnitData
 
 def main():
+    #Identify the environment
+    machineName= socket.gethostname()
+    if machineName == SMITHERS_HOSTNAME:
+        archivePath = SMITHERS_ARCHIVE
+        picklePath = SMITHERS_ARCHIVE_PICKLE
+    elif machineName == LAPTOP_HOSTNAME:
+        archivePath = LAPTOP_ARCHIVE
+        picklePath = LAPTOP_ARCHIVE_PICKLE
+    else:
+        print "Error:  Unknown machine name:",machineName
+        sys.exit(1)
+        
     timer = stopwatch.stopWatch()
     print "Initializing photo database..."
     sys.stdout.flush()
-    archive = photoData("C:\Users\scott_jackson\Pictures")
+    archive = photoData(archivePath)
     print "Number of file sizes measured: ", len(archive.data)
     print "Elapsed Time for file sizes:",timer.read()
     print ""
@@ -41,7 +63,7 @@ def main():
     timer.start()
     print "Pickling results:"
     sys.stdout.flush()
-    pickle_fp = open("C:\Users\scott_jackson\Desktop\PhotoPickle.txt","w")
+    pickle_fp = open(picklePath,"w")
     pickle = Pickler(pickle_fp)
     pickle.dump(archive)
     print "Pickle done.  Elapsed time:",timer.read()
@@ -51,7 +73,6 @@ def main():
     for names in zeroFiles:
         print names
     print ""
-    sys.exit(0)  
           
     timer.start()
     sameSizedTrees = archive.listSameSizedTrees()
@@ -67,9 +88,11 @@ def main():
         for node in sameSizedTrees[showLargest]:
             print node, archive.data[node].size/1000000.0,"MB"
     print ""
-    
+
     dupList = archive.listLargestDuplicateTrees(2)
     pprint.pprint(dupList)
+    print "Done"
+    sys.exit(0)    
     
     candidate = photoData("C:\\Users\\scott_jackson\\Pictures\\20110217 Herzaliya - Copy")
     print isNodeInArchive(archive, candidate)
