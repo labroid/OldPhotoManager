@@ -63,10 +63,10 @@ def findSameTimestamp(collection, targetTime):
     return(candidateList)
             
 
-    candidateFiles = filter(lambda x:filterstring in x, collection.data.keys())
-    print "candidateFiles=",candidateFiles
-    for file in candidateFiles:
-        print "Candidate:",file
+#    candidateFiles = filter(lambda x:filterstring in x, collection.data.keys())
+#    print "candidateFiles=",candidateFiles
+#    for file in candidateFiles:
+#        print "Candidate:",file
     
     
                 

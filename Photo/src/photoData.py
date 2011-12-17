@@ -130,7 +130,6 @@ class photoData:
                 seen.add(s[1].size)
     #Sort list in order of size and remove from list children of nodes
         duplicateSizes = sorted(duplicateSizes, reverse = True)
-    #Need to figure out how to remove children of a duplicate node
             
     #Now build a nested list collecting file names of duplicates
         self.dupSizeList = []
