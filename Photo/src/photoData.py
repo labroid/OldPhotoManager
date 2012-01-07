@@ -8,13 +8,15 @@ import sys
 import os
 import datetime
 from fileMD5sum import fileMD5sum, stringMD5sum
+from photoFunctions import getTagsFromFile, getTimestampFromTags,\
+    thumbnailMD5sum, getTagsFromFile2
 
 class photoUnitData():
     def __init__(self):
         self.size=0
         self.mtime = -(sys.maxint - 1) #Set default time to very old
         self.timestamp = datetime.datetime.strptime('1700:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
-        self.tags = ''
+        self.gotTags = False
         self.thumbnailMD5 = ''
         self.dirflag = False
         self.fileMD5 = ''
@@ -87,6 +89,8 @@ class photoData:
     #        print "."
     
     def listLargestDuplicateTrees(self, count = 1):
+        if len(self.dupSizeList) == 0:
+            return([])
         if self.dupSizeList[0] == 'NA':
             self.findSameSizedTrees()
         dupListLength = len(self.dupSizeList)
@@ -143,9 +147,52 @@ class photoData:
         return()
     
     def listSameSizedTrees(self):
-        if self.dupSizeList[0] == 'NA':
-            self.findSameSizedTrees()
+        if len(self.dupSizeList) > 0:
+            if self.dupSizeList[0] == 'NA': #NA indicates list is initialized by not computed.  Empty list means it is computed but there are no duplicates.
+                self.findSameSizedTrees()
         return(self.dupSizeList)
+    
+    def extractTags(self, filelist = []):
+        if len(filelist) == 0:  #Might be better to make an iterator here and use that
+            filelist = self.data.keys()
+        tagsChanged = False
+        for file in filelist:
+            if not self.data[file].dirflag and not self.data[file].gotTags:
+                tags = getTagsFromFile(file)
+                self.data[file].timestamp, success, message = getTimestampFromTags(tags)
+                #if not success:
+                #    print "Unsuccessful timestamp conversion for file", file, message, "using mtime"
+                tagsChanged = True
+                self.data[file].thumbnailMD5 = thumbnailMD5sum(tags)
+                self.data[file].gotTags = True
+        return(tagsChanged)
+    
+    def extractTags2(self, filelist = []):
+        if len(filelist) == 0:
+            filelist = self.data.keys()
+        tagsChanged = False
+        for file in filelist:
+            if not self.data[file].dirflag:
+                if self.data[file].tags != '':  #Fix this!
+                    self.data[file].tags = getTagsFromFile2(file)
+                    #self.data[file].timestamp, success, message = getTimestampFromTags(self.data[file].tags)
+#                    if not success:
+#                        print "Unsuccessful timestamp conversion for file", file, message, "using mtime"
+                    tagsChanged = True
+        return(tagsChanged)
+    
+    
+    def extractThumbnailMD5(self, filelist = []):
+        if len(filelist) == 0:
+            filelist = self.data.keys()
+        tagsChanged = False
+        for file in filelist:
+            if not self.data[file].dirflag:
+                if self.data[file].thumbnailMD5 == '':
+                    self.data[file].thumbnailMD5 = thumbnailMD5sum(self.data[file].tags)
+                    tagsChanged = True
+        return(tagsChanged)
+        
 
         
         

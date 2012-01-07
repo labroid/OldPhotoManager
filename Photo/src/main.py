@@ -3,31 +3,59 @@ Created on Oct 21, 2011
 
 @author: scott_jackson
 '''
-import os.path
+import sys
 import pprint
 import stopwatch
-from photoFunctions import isNodeInArchive
+from photoFunctions import isNodeInArchive, getTagsFromFile, getTimestampFromTags
 from photoData import photoData
-
-#import photoUnitData
+from photoUtils import printNow, environment
+from pickleManager import photoPickler
 
 def main():
+    env = environment()
     timer = stopwatch.stopWatch()
-    print "Initializing photo database..."
-    archive = photoData("C:\Users\scott_jackson\Pictures")
-    print "Number of file sizes measured: ", len(archive.data)
-    print "Elapsed Time for file sizes:",timer.read()
+    pickle = photoPickler(env.options['archivepickle'])
+    if pickle.pickleExists:                
+        archive = pickle.loadPickle()
+    else:
+        printNow("No pickle found.  Building Photo database.") 
+        timer.start()     
+        archive = photoData(env.options['archive'])
+    print "Number of files: ", len(archive.data)
+    print "Elapsed Time:",timer.read()
     print ""
+    
+    printNow("Extracting tags")
+    timer.start()
+    tagsChanged = archive.extractTags() 
+    if tagsChanged:
+        print "Tags extracted.  Elapsed time:", timer.read(), "Picking..."
+        timer.start()
+        pickle.dumpPickle(archive)
+        print "Pickeled.  Elapsed time:", timer.read()
+    else:
+        print "No tags changed."
+        
+#    printNow("Extracting tags 2")
+#    timer.start()
+#    tagsChanged = archive.extractTags2() 
+#    if tagsChanged:
+#        print "Tags extracted.  Elapsed time:", timer.read()
+#    else:
+#        print "No tags changed."
     
     print "Zero-length files:"
     zeroFiles = archive.listZeroLengthFiles()
-    for names in zeroFiles:
-        print names
-    print ""
-        
+    if len(zeroFiles) == 0:
+        print "No zero-length files."
+    else:
+        for names in zeroFiles:
+            print names
+        print ""
+          
     timer.start()
     sameSizedTrees = archive.listSameSizedTrees()
-    print "Top duplicate nodes(found in", timer.read(),"seconds):"
+    print "Top same-sized nodes(found in", timer.read(),"seconds):"
     listLength = len(sameSizedTrees)
     if listLength == 0:
         print "No duplicate nodes found."
@@ -40,17 +68,27 @@ def main():
             print node, archive.data[node].size/1000000.0,"MB"
     print ""
     
+    timer.start()
+    print "Checking Checksums to confirm duplication"
     dupList = archive.listLargestDuplicateTrees(2)
+    print "Checksums completed in",timer.read(),"Seconds."
     pprint.pprint(dupList)
     
+    #Re-pickle with hashes
+    pickle.dumpPickle(archive)
+    
+    printNow("Checking candidate directory for inclusion in archive")    
     candidate = photoData("C:\\Users\\scott_jackson\\Pictures\\20110217 Herzaliya - Copy")
-    print isNodeInArchive(archive, candidate)
-    for file in candidate.data.keys():
+    candidate.extractTags()
+    candidateList = isNodeInArchive(archive, candidate)
+    print "There are", len(candidateList), "candidates:"
+    for file in candidateList:
         print file, candidate.data[file].timestamp
 #        print "Node is in archive"
 #    else:
 #        print "something else"
-        
+    print "Done"
+    sys.exit(0)          
     
 if __name__ == '__main__':
     main()
