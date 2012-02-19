@@ -7,9 +7,10 @@ Created on Oct 21, 2011
 import sys
 import os
 import datetime
+import logging
 from fileMD5sum import fileMD5sum, stringMD5sum
 from photoFunctions import getTagsFromFile, getTimestampFromTags,\
-    thumbnailMD5sum, getTagsFromFile2
+    thumbnailMD5sum, getTagsFromFile, getUserTagsFromTags
 
 class photoUnitData():
     def __init__(self):
@@ -20,6 +21,9 @@ class photoUnitData():
         self.thumbnailMD5 = ''
         self.dirflag = False
         self.fileMD5 = ''
+        self.userTags = ''
+        self.inArchive = False
+        self.candidates = []
         self.degenerateParent = False
             
 class photoData:
@@ -89,8 +93,6 @@ class photoData:
     #        print "."
     
     def listLargestDuplicateTrees(self, count = 1):
-        if len(self.dupSizeList) == 0:
-            return([])
         if self.dupSizeList[0] == 'NA':
             self.findSameSizedTrees()
         dupListLength = len(self.dupSizeList)
@@ -108,6 +110,9 @@ class photoData:
             print "Set of resulting MD5s",sumSet
             if reduce(lambda x, y: x == y, sumSet):
                 dupList.append(self.dupSizeList[i])
+                print "Same"
+            else:
+                print "Not same"
         return(dupList)
         
 
@@ -119,66 +124,92 @@ class photoData:
         return(zeroLengthNames)
             
             
-    def findSameSizedTrees(self):
+    def findDuplicateSizes(self,fileList):
+        seen = set()
+        duplicateSizes=set()
+        for s in fileList:
+            if s[1].size in seen:
+                duplicateSizes.add(s[1].size)
+            else:
+                seen.add(s[1].size)
+#Sort list in order of size and remove from list children of nodes
+        duplicateSizes = sorted(duplicateSizes, reverse = True)
+        return(duplicateSizes)
+    
+    def findSameSizedTrees(self, suppressChildren = True):
     #Convert dictionary to list
         sizeList = [(k, v) for k, v in self.data.iteritems()]
     #Filter out degenerate parent directories
         validSizes = filter(lambda x: not x[1].degenerateParent, sizeList)
     #Find duplicate file sizes
-        seen = set()
-        duplicateSizes=set()
-        for s in validSizes:
-            if s[1].size in seen:
-                duplicateSizes.add(s[1].size)
-            else:
-                seen.add(s[1].size)
-    #Sort list in order of size and remove from list children of nodes
-        duplicateSizes = sorted(duplicateSizes, reverse = True)
+        duplicateSizes = self.findDuplicateSizes(validSizes)
             
     #Now build a nested list collecting file names of duplicates
         self.dupSizeList = []
-        for dups in duplicateSizes[0:10]:
+        while len(duplicateSizes) > 0:
+            print "Length of 'same size' list:", len(duplicateSizes)
             dupeSubList = []
             for n in validSizes:
-                if n[1].size == dups:
+                if n[1].size == duplicateSizes[0]:
                     dupeSubList.append(n[0])
             self.dupSizeList.append(dupeSubList)
-                    
+            if suppressChildren: #Prune children from candidate list
+                for root in dupeSubList:
+                    for n in validSizes:
+                        if root in n[0]:
+                            validSizes.remove(n)
+            duplicateSizes = self.findDuplicateSizes(validSizes)                 
         return()
     
-    def listSameSizedTrees(self):
+    def listSameSizedTrees(self, suppressChildren = True):
         if len(self.dupSizeList) > 0:
             if self.dupSizeList[0] == 'NA': #NA indicates list is initialized by not computed.  Empty list means it is computed but there are no duplicates.
-                self.findSameSizedTrees()
+                self.findSameSizedTrees(suppressChildren)
         return(self.dupSizeList)
     
+#    def extractTags(self, filelist = []):
+#        if len(filelist) == 0:  #Might be better to make an iterator here and use that
+#            filelist = self.data.keys()
+#        tagsChanged = False
+#        for file in filelist:
+#            if not self.data[file].dirflag and not self.data[file].gotTags:
+#                tags = getTagsFromFile(file)
+#                self.data[file].timestamp, success, message = getTimestampFromTags(tags)
+#                #if not success:
+#                #    print "Unsuccessful timestamp conversion for file", file, message, "using mtime"
+#                #self.data[file].userTags = getUserTagsFromTags(tags)
+#                tagsChanged = True
+#                self.data[file].thumbnailMD5 = thumbnailMD5sum(tags)
+#                self.data[file].gotTags = True
+#        return(tagsChanged)
+#    
     def extractTags(self, filelist = []):
-        if len(filelist) == 0:  #Might be better to make an iterator here and use that
-            filelist = self.data.keys()
-        tagsChanged = False
-        for file in filelist:
-            if not self.data[file].dirflag and not self.data[file].gotTags:
-                tags = getTagsFromFile(file)
-                self.data[file].timestamp, success, message = getTimestampFromTags(tags)
-                #if not success:
-                #    print "Unsuccessful timestamp conversion for file", file, message, "using mtime"
-                tagsChanged = True
-                self.data[file].thumbnailMD5 = thumbnailMD5sum(tags)
-                self.data[file].gotTags = True
-        return(tagsChanged)
-    
-    def extractTags2(self, filelist = []):
+        logger = logging.getLogger('extractTags')  #Is there some automatic way to get func name??
         if len(filelist) == 0:
             filelist = self.data.keys()
         tagsChanged = False
+        filecount = len(filelist)
+        filesProcessed = 0
+        reportBlock = 200
+        lastBlock = 0
         for file in filelist:
-            if not self.data[file].dirflag:
-                if self.data[file].tags != '':  #Fix this!
-                    self.data[file].tags = getTagsFromFile2(file)
-                    #self.data[file].timestamp, success, message = getTimestampFromTags(self.data[file].tags)
-#                    if not success:
-#                        print "Unsuccessful timestamp conversion for file", file, message, "using mtime"
+            if not self.data[file].dirflag and not self.data[file].gotTags:
+                tags = getTagsFromFile(file)
+                if tags != None:
+                    self.data[file].timestamp = getTimestampFromTags(tags)
+                    self.data[file].thumbnailMD5 = thumbnailMD5sum(tags)
+                    self.data[file].userTags = getUserTagsFromTags(tags)
                     tagsChanged = True
+                    self.data[file].gotTags = True
+#                    print self.data[file].timestamp, "|", self.data[file].userTags
+                else:
+                    logger.debug("%s: No Tags Returned." % file)
+                    #print file, self.data[file].timestamp, self.data[file].userTags, self.data[file].thumbnailMD5
+            filesProcessed += 1
+            if (filesProcessed/reportBlock) > lastBlock:
+                lastBlock = filesProcessed/reportBlock
+                print filesProcessed, filecount, float(filesProcessed)/filecount * 100, "%"
+            
         return(tagsChanged)
     
     
