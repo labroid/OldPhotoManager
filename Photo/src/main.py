@@ -31,22 +31,14 @@ def main():
     print "Counting node types"
     dircount = 0
     filecount = 0
-#    dupCount = 0
     timer.start()
-#    photoSet = set()
     for file in archive.data.keys():
         if archive.data[file].dirflag:
             dircount += 1
         else:
             filecount += 1
-#            md5 = archive.data[file].thumbnailMD5
-#            if md5 in photoSet:
-#                dupCount += 1
-#            else:
-#                photoSet.add(md5)
     print "Total time:",timer.read(),"or",timer.read()/(filecount+dircount)*1000000.0,"us/file"
-    print "Dircount:",dircount,"Filecount",filecount,"Total",dircount+filecount
-#    print "Unique photos",len(photoSet),"(",len(photoSet)*1.0/(dircount+filecount)*100.0,"%) Duplicates:",dupCount,"(",dupCount*1.0/(dircount+filecount)*100.0,"%)"        
+    print "Dircount:",dircount,"Filecount",filecount,"Total",dircount+filecount        
         
     printNow("Extracting tags")
     timer.start()
@@ -90,8 +82,8 @@ def main():
     if listLength == 0:
         print "No duplicate nodes found."
     else:
-        if listLength > 100:
-            listLength = 100
+        if listLength > 1000:
+            listLength = 1000
     for showLargest in range(0,listLength):
         print "Largest node, rank:",showLargest+1
         for node in sameSizedTrees[showLargest]:
@@ -112,14 +104,12 @@ def main():
         if areDirs:  print "Duplicate Dirs:", entry
         if areFiles:  print "Duplicate Files:", entry
         if areMixed:  print "Mixed Dirs/Files:", entry, 'this should never happen!'
-    
 
-    
-    sys.exit(0)
     #Re-pickle with hashes
     pickle.dumpPickle(archive)
     
     printNow("Checking candidate directory for inclusion in archive")    
+    #Finishes silently after printng this.
     candidate = photoData("C:\\Users\\scott_jackson\\Pictures\\20110217 Herzaliya")
     candidate.extractTags()
     nodeInArchive = isNodeInArchive(archive, candidate)
@@ -136,7 +126,7 @@ def main():
         if not candidate.data[file].dirflag and not candidate.data[file].inArchive:
             print file, candidate.data[file].timestamp    
     print "Done"
-    sys.exit(0)          
+#Probably should clean the duplicate status etc. between runs to avoid carry forward from pickle          
     
 if __name__ == '__main__':
     main()

@@ -208,8 +208,7 @@ class photoData:
             filesProcessed += 1
             if (filesProcessed/reportBlock) > lastBlock:
                 lastBlock = filesProcessed/reportBlock
-                print filesProcessed, filecount, float(filesProcessed)/filecount * 100, "%"
-            
+                print filesProcessed, filecount, float(filesProcessed)/filecount * 100, "%"    
         return(tagsChanged)
     
     
