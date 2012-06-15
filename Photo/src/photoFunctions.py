@@ -56,6 +56,7 @@ def isNodeInArchive(archive, node):
         print "Error:  Node and Archive have the same root"
         nodeInArchive = False
         return(nodeInArchive) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive
+    nodeInArchive = True  #If we find an empty directory the following loop will drop through, so we declare the node as in archive since there is no risk in deleting it
     for root, dirs, files in os.walk(node.path, topdown=False):
         allFilesInArchive = True
         candidate = candidateData()

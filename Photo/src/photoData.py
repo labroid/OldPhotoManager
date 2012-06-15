@@ -6,8 +6,11 @@ Created on Oct 21, 2011
 '''
 import sys
 import os
+import time
 import datetime
 import logging
+import Queue
+import threading
 from fileMD5sum import fileMD5sum, stringMD5sum
 from photoFunctions import getTagsFromFile, getTimestampFromTags,\
     thumbnailMD5sum, getTagsFromFile, getUserTagsFromTags
@@ -17,7 +20,7 @@ class photoUnitData():
         self.size=0
         self.mtime = -(sys.maxint - 1) #Set default time to very old
         self.timestamp = datetime.datetime.strptime('1700:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
-        self.gotTags = False
+        self.gotTags = False  #Get rid of this; thumbnailMD5 is sufficient
         self.thumbnailMD5 = ''
         self.dirflag = False
         self.fileMD5 = ''
@@ -166,51 +169,54 @@ class photoData:
             if self.dupSizeList[0] == 'NA': #NA indicates list is initialized by not computed.  Empty list means it is computed but there are no duplicates.
                 self.findSameSizedTrees(suppressChildren)
         return(self.dupSizeList)
-    
-#    def extractTags(self, filelist = []):
-#        if len(filelist) == 0:  #Might be better to make an iterator here and use that
-#            filelist = self.data.keys()
-#        tagsChanged = False
-#        for file in filelist:
-#            if not self.data[file].dirflag and not self.data[file].gotTags:
-#                tags = getTagsFromFile(file)
-#                self.data[file].timestamp, success, message = getTimestampFromTags(tags)
-#                #if not success:
-#                #    print "Unsuccessful timestamp conversion for file", file, message, "using mtime"
-#                #self.data[file].userTags = getUserTagsFromTags(tags)
-#                tagsChanged = True
-#                self.data[file].thumbnailMD5 = thumbnailMD5sum(tags)
-#                self.data[file].gotTags = True
-#        return(tagsChanged)
-#    
+
+    class tagsFromFileWorker(threading.Thread):
+        def __init__(self, queue, photodata):
+            threading.Thread.__init__(self)
+            self.queue = queue
+            self.photos = photodata
+            
+        def run(self):
+            while not self.queue.empty():
+                targetFile = self.queue.get()
+                tags = getTagsFromFile(targetFile)
+#                if tags != None:
+#                    self.photos[targetFile].timestamp = getTimestampFromTags(tags)
+#                    self.photos[targetFile].thumbnailMD5 = thumbnailMD5sum(tags)
+#                    self.photos[targetFile].userTags = getUserTagsFromTags(tags)
+#    #                self.photodatatagsChanged = True  #Figure out what to do with this now that it's threaded; make it a property of the photos object?
+#                    self.photos[targetFile].gotTags = True
+                print self.queue.qsize()
+                self.queue.task_done()
+    #               print self.data[targetFile].timestamp, "|", self.data[targetFile].userTags
+    #            else:
+    #                logger.debug("%s: No Tags Returned." % targetFile)
+                    #print targetFile, self.data[targetFile].timestamp, self.data[targetFile].userTags, self.data[targetFile].thumbnailMD5
+     
     def extractTags(self, filelist = []):
         logger = logging.getLogger('extractTags')  #Is there some automatic way to get func name??
         if len(filelist) == 0:
             filelist = self.data.keys()
-        tagsChanged = False
         filecount = len(filelist)
-        filesProcessed = 0
-        reportBlock = 200
-        lastBlock = 0
+        queue = Queue.Queue()
+        totalcount = 0
+        count = 0
+        print "Filecount =",filecount
         for file in filelist:
+            totalcount += 1
             if not self.data[file].dirflag and not self.data[file].gotTags:
-                tags = getTagsFromFile(file)
-                if tags != None:
-                    self.data[file].timestamp = getTimestampFromTags(tags)
-                    self.data[file].thumbnailMD5 = thumbnailMD5sum(tags)
-                    self.data[file].userTags = getUserTagsFromTags(tags)
-                    tagsChanged = True
-                    self.data[file].gotTags = True
-#                    print self.data[file].timestamp, "|", self.data[file].userTags
-                else:
-                    logger.debug("%s: No Tags Returned." % file)
-                    #print file, self.data[file].timestamp, self.data[file].userTags, self.data[file].thumbnailMD5
-            filesProcessed += 1
-            if (filesProcessed/reportBlock) > lastBlock:
-                lastBlock = filesProcessed/reportBlock
-                print filesProcessed, filecount, float(filesProcessed)/filecount * 100, "%"    
-        return(tagsChanged)
-    
+                queue.put(file)
+                count += 1
+                print count,"of",totalcount,queue.qsize()
+        print "Queue size =",queue.qsize()
+        for i in range(2):
+            worker = self.tagsFromFileWorker(queue,self.data)
+            worker.start()
+        queue.join()
+#        while (not queue.empty()):
+#            time.sleep(1)
+#            print str(queue.qsize()/float(filecount)*100) + "%"  
+        return(True)
     
     def extractThumbnailMD5(self, filelist = []):
         if len(filelist) == 0:

@@ -42,7 +42,7 @@ def main():
         
     printNow("Extracting tags")
     timer.start()
-    tagsChanged = archive.extractTags() 
+    tagsChanged = archive.extractTags() #TagsChanged always returns True for now
     if tagsChanged:
         elapsedTime = timer.read()
         print "Tags extracted.  Elapsed time:", elapsedTime, "or", elapsedTime/filecount * 1000, "ms per file, or", elapsedTime/filecount * 100000/60, "Minutes for 100k files"
