@@ -2,93 +2,98 @@
 Created on Nov 23, 2011
 
 @author: scott_jackson
-
-Finding if a node is represented in an archive
-    [TODO: take care of special case of a file and not a directory]
-    traverse candidate tree and get sizes and mtimes (SumFileandDirSize())
-    traverse candidate tree
-        for each file 
-            get EXIF tags
-            search archive for file with same timestamp
-            if no files with same timestamp in archive
-                mark candidate file for inclusion in archive
-            else
-                if file checksums are identical
-                    mark candidate as included
-                else
-                    compute photo signature (thumbnail checksum, tag checksum)
-                    if thumbnail checksums different [Watch out, thumnail might be start/lengt]
-                        mark candidate for inclusion in archive
-                    else
-                        if tags are identical
-                            mark candidate as included
-                            note strangeness (thumbnails and tags same but file checksum different)
-                        else
-                            mark for review by user
-            accululate status for root (all_included, all_include)
-        
-        for each directory
-            accumulate status for root (all_included, all_include)
-                mark directory as included
-            
-        for root mark with accumulated status
 '''
 
 import os
 import datetime
 import logging
 import pyexiv2
-import pprint
+import time
 from fileMD5sum import stringMD5sum, fileMD5sum
+from photoUtils import printNow
 
-class candidateData():
-    def __init__(self):
-        self.path = ''
-        self.fileMD5same = False
-        self.thumbMD5same = False
-        self.thumbAndTagsSame = False
-        
-    def clear(self):
-        self.__init__()
-
-def isNodeInArchive(archive, node):
+#def isNodeInArchive(archive, node):
+#    if archive.path == node.path:
+#        print "Error:  Node and Archive have the same root"
+#        return(False) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive
+#    for root, dirs, files in os.walk(node.path, topdown=False):
+#        allFilesInArchive = True
+##        candidate = candidateData()  #This might be better just using variables and not an object
+#        for file in files:
+#            FileInArchive = False
+#            nodeFile = os.path.join(root,file)
+##            timeCandidates = [k for k, v in archive.data.iteritems() if v.timestamp == node.data[nodeFile].timestamp]
+##            timeCandidates = findSameTimestamp(archive, node.data[nodeFile].timestamp)
+#            node.data[nodeFile].candidates = []
+#            for archiveFile in archive.data.keys():
+#                if nodeFile != archiveFile:  #Avoids checking oneself if Node is in Archive - but allows discovery of duplicates elsewhere in archive
+#                    candidatePath = candidateThumbMD5same = candidateThumbAndTagsSame = candidateFileMD5same = None
+#                    if archive.data[archiveFile].thumbnailMD5 == node.data[nodeFile].thumbnailMD5:
+#                        candidatePath = archiveFile
+#                        candidateThumbMD5same = True
+#                        if archive.data[archiveFile].userTags != node.data[nodeFile].userTags:
+#                            candidateThumbAndTagsSame = False
+#                        else:
+#                            candidateThumbAndTagsSame = True
+#                            if fileMD5sum(archiveFile) == fileMD5sum(nodeFile):  #Recomputes archive MD5 repeatedly
+#                                candidateFileMD5same = True
+#                                node.data[nodeFile].inArchive = True
+#                                FileInArchive = True
+#                            else:
+#                                candidateFileMD5same = False
+#                                node.data[nodeFile].inArchive = False
+#                        node.data[nodeFile].candidates.append([candidatePath, candidateThumbMD5same, candidateThumbAndTagsSame, candidateFileMD5same])
+#            allFilesInArchive = allFilesInArchive and FileInArchive
+##            print ".",
+##    print nodeFile,"?=?",archiveFile,":",node.data[nodeFile].candidates,"MD5",candidateFileMD5same,"Tags",candidateThumbAndTagsSame
+#    allDirsInArchive = True
+#    node.data[root].inArchive = True
+#    nodeInArchive = True
+#    for dir in dirs:
+#        nodeInArchive = node.data[dir].inArchive and nodeInArchive
+#    return(nodeInArchive)
+##            pprint.pprint(timeCandidates)
+#    #This should return something (list of candidates?)
+      
+def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!
     if archive.path == node.path:
-        print "Error:  Node and Archive have the same root"
-        nodeInArchive = False
-        return(nodeInArchive) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive
-    nodeInArchive = True  #If we find an empty directory the following loop will drop through, so we declare the node as in archive since there is no risk in deleting it
+        print "Error:  Node and Archive must have different root paths"
+        return(False) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive    
+
+#Create a dictionary using thumbMD5s as the keys for fast lookup    
+    archiveTable = {}
+    for archiveFile in archive.data.keys():
+        if not archive.data[archiveFile].thumbnailMD5 in archiveTable: 
+            archiveTable[archive.data[archiveFile].thumbnailMD5] = [archiveFile]
+        else:
+            archiveTable[archive.data[archiveFile].thumbnailMD5].append(archiveFile)
+            
+    allFilesInArchive = True  #Seed value; logic will falsify if any files missing     
     for root, dirs, files in os.walk(node.path, topdown=False):
-        allFilesInArchive = True
-        candidate = candidateData()
-        for file in files:
-            FileInArchive = False
-            nodeFile = os.path.join(root,file)
-#            timeCandidates = [k for k, v in archive.data.iteritems() if v.timestamp == node.data[nodeFile].timestamp]
-#            timeCandidates = findSameTimestamp(archive, node.data[nodeFile].timestamp)
-            node.data[nodeFile].candidates = []
-            for archiveFile in archive.data.keys(): 
-                if nodeFile != archiveFile:  #Avoids checking oneself if Node is in Archive - but allows discovery of duplicates elsewhere in archive
-                    candidate.clear()
-                    if archive.data[archiveFile].thumbnailMD5 == node.data[nodeFile].thumbnailMD5:
-                        candidate.path = archiveFile
-                        candidate.thumbMD5same = True
-                        if archive.data[archiveFile].userTags == node.data[nodeFile].userTags:
-                            candidate.thumbAndTagsSame = True
-                            if fileMD5sum(archiveFile) == fileMD5sum(nodeFile):  #Might be faster to use MD5sum from data structure
-                                candidate.fileMD5same = True
-                                node.data[nodeFile].inArchive = True
-                                FileInArchive = True
-                        node.data[nodeFile].candidates.append(candidate)
-            print nodeFile,"?=?",archiveFile,":",node.data[nodeFile].candidates
-            allFilesInArchive = allFilesInArchive and FileInArchive
-        allDirsInArchive = True
-        node.data[root].inArchive = True
-        nodeInArchive = True
-        for dir in dirs:
-            nodeInArchive = node.data[dir].inArchive and nodeInArchive
-    return(nodeInArchive)
-#            pprint.pprint(timeCandidates)
-    #This should return something (list of candidates?)
+        for nodeFile in files:
+            candidateFile = os.path.join(root,nodeFile)
+            node.data[candidateFile].candidates = []
+            node.data[candidateFile].inArchive = False #Assume it is not in archive unless proven otherwise
+            if node.data[candidateFile].thumbnailMD5 in archiveTable:
+                for archiveFile in archiveTable[node.data[candidateFile].thumbnailMD5]:
+                    if archiveFile != candidateFile:  #Don't compare to oneself in case candidate path is in archive path  
+                        if archive.data[archiveFile].userTags != node.data[candidateFile].userTags:
+                            candidateThumbAndTagsSame = False
+                        else:
+                            candidateThumbAndTagsSame = True
+                            if archive.getFileMD5(archiveFile) == node.getFileMD5(candidateFile):
+                                node.data[candidateFile].inArchive = True
+                        node.data[candidateFile].candidates.append([archiveFile, candidateThumbAndTagsSame, node.data[candidateFile].inArchive])
+            allFilesInArchive = allFilesInArchive and node.data[candidateFile].inArchive
+    
+        if not allFilesInArchive:
+            nodeInArchive = False
+        else:
+            nodeInArchive = True
+            for nodeDir in dirs:
+                nodeInArchive = node.data[nodeDir].inArchive and nodeInArchive
+            node.data[root].inArchive = nodeInArchive
+    return(node.data[root].inArchive) 
             
 def findSameTimestamp(collection, targetTime):
     candidateList = []
@@ -163,7 +168,6 @@ def getUserTagsFromTags(tags):
         else:
             return('')
         
-            
 #def getTimestampFromTagsOld(tags):
 #    defaultTimestamp = datetime.datetime.strptime('1950:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
 #    if 'EXIF DateTimeOriginal' in tags:
