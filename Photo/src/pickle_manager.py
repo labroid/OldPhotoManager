@@ -5,22 +5,22 @@ Created on Dec 25, 2011
 '''
 import sys
 import os.path
+import logging
 from cPickle import Pickler, Unpickler
-from photoUtils import printNow
+from photo_utils import print_now
 from stopwatch import stopWatch
 
-class photoPickler:
+class photo_pickler:
     def __init__(self, picklePath):
         self.pickleExists = False
         self.picklePath = picklePath
         self.pickler = ''
         self.unpickler = ''
-        self.pickler_fp = ''
-        self.unpickler_fp = ''
-        self.checkPickleExists()
+        self._pickler_fp = ''
+        self._unpickler_fp = ''
+        self.check_pickle_path_exists()
         
-    def checkPickleExists(self, verbose = False):
-        if verbose:  print "Checking for existing pickle..."
+    def check_pickle_path_exists(self):
         if os.path.exists(self.picklePath):
             self.pickleExists = True
         else:
@@ -30,31 +30,34 @@ class photoPickler:
     def getPickleFile(self, fileMode):
         try:
             pickle_fp = open(self.picklePath, fileMode)
-#        except IOError as (errno, strerror):
-#            print 'Problem opening path:', self.picklePath, strerror
+        except IOError as (errno, strerror):
+            print 'Exiting: Fatal Error opening pickle at:', self.picklePath, strerror
+            sys.exit(1)
         except:
-            print "Problem opening:", self.picklePath
+            print "Exiting:  Fatal Error opening pickle at:", self.picklePath
             sys.exit(1)
         return(pickle_fp)
     
-    def loadPickle(self, verbose = False):
+    def loadPickle(self):
+        logger = logging.getLogger(__name__)
         timer = stopWatch()
         timer.start()
-        if verbose: printNow("Unpacking pickle.")
+        logger.info("Unpacking pickle at {0}".format(self.picklePath))
         pickle_fp = self.getPickleFile('rb')
         unpickler = Unpickler(pickle_fp)
         package = unpickler.load()
         pickle_fp.close()
-        if verbose: printNow("Unpickle done.  Elapsed time: " + str(timer.read()))
+        logger.info("Unpickle done.  Elapsed time: {0} seconds".format(timer.read()))
         return(package)
             
-    def dumpPickle(self, archive, verbose = False):
+    def dumpPickle(self, archive):
+        logger = logging.getLogger(__name__)
         timer = stopWatch()
         timer.start()
-        if verbose: printNow("Pickling latest results.")
+        logger.info("Pickling latest results.")
         pickle_fp = self.getPickleFile('wb')
         pickler = Pickler(pickle_fp, protocol=2)
         pickler.dump(archive)
         pickle_fp.close()
-        if verbose: printNow("Pickling complete.  Elapsed time: " + str(timer.read()) + " seconds.")
+        logger.info("Pickling complete.  Elapsed time: {0} seconds".format(timer.read()))
         return()

@@ -8,7 +8,7 @@ import os.path
 import socket
 import pprint
 import stopwatch
-from photoFunctions import isNodeInArchive, getTags, getTimestampFromTags
+from photo_functions import isNodeInArchive, getTags, getTimestampFromTags
 from photoData import photoData
 from pickle import Pickler
 

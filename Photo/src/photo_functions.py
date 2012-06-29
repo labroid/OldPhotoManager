@@ -10,7 +10,8 @@ import logging
 import pyexiv2
 import time
 from fileMD5sum import stringMD5sum, fileMD5sum
-from photoUtils import printNow
+from photo_utils import print_now
+import stopwatch
 
 #def isNodeInArchive(archive, node):
 #    if archive.path == node.path:
@@ -54,6 +55,32 @@ from photoUtils import printNow
 #    return(nodeInArchive)
 ##            pprint.pprint(timeCandidates)
 #    #This should return something (list of candidates?)
+
+
+
+def count_unique_photos(archive):
+    print "Counting unique photos"
+    timer = stopwatch.stopWatch()
+    dup_count = 0
+    dircount = 0
+    filecount = 0
+    timer.start()
+    photo_set = set()
+    for archive_file in archive.data.keys():
+        if archive.data[archive_file].dirflag:
+            dircount += 1
+        else:
+            filecount += 1
+            md5 = archive.data[archive_file].thumbnailMD5
+            if md5 in photo_set:
+                dup_count += 1
+            else:
+                photo_set.add(md5)
+    
+    print "Total time:", timer.read(), "or", timer.read() / (filecount + dircount) * 1000000.0, "us/file"
+    print "Dircount:", dircount, "Filecount", filecount, "Total", dircount + filecount
+    print "Unique photos", len(photo_set), "(", len(photo_set) * 1.0 / (dircount + filecount) * 100.0, "%) Duplicates:", dup_count, "(", dup_count * 1.0 / (dircount + filecount) * 100.0, "%)"
+
       
 def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!
     if archive.path == node.path:

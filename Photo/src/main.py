@@ -2,73 +2,30 @@
 Created on Oct 21, 2011
 
 @author: scott_jackson
+
+TODO:
+1. Think about how this will behave filling out database with new roots (e.g. root changes)
+2. Make sure we can use one database for comparisons
+3. Make configuration file universal (use in all functions) if needed
 '''
 import os.path
 import logging
 import stopwatch
-from photoFunctions import isNodeInArchive
-from photoData import photoData
-from photoUtils import printNow, environment
-from pickleManager import photoPickler
-
-
+from photo_functions import isNodeInArchive, count_unique_photos
+from photoData import photoData, get_photo_data
+from photo_utils import print_now, environment
+from pickle_manager import photo_pickler
 
 def main():
     env = environment()
-    logging.basicConfig(filename = env.options['logfile'], level = logging.DEBUG, filemode = 'w')
     timer = stopwatch.stopWatch()
-    pickle = photoPickler(env.options['archivepickle'])
-    if pickle.pickleExists:                
-        archive = pickle.loadPickle(verbose = True)
-    else:
-        printNow("No pickle found.  Building Photo database.") 
-        timer.start()     
-        archive = photoData(env.options['archive'])
-    print "Number of nodes: ", len(archive.data)
-    print "Elapsed Time:",timer.read(),"or",timer.read()/len(archive.data) * 1000,"ms/node"
-    print ""
-
+    logging.basicConfig(filename = env.options['logfile'], level = logging.DEBUG, filemode = 'w')
     
-    print "Counting node types"
-    dircount = 0
-    filecount = 0
-    timer.start()
-    extensions = set()
-    for archiveFile in archive.data.keys():
-        extensions.add(str.lower(os.path.splitext(archiveFile)[1]))
-        if archive.data[archiveFile].dirflag:
-            dircount += 1
-        else:
-            filecount += 1
-    print "Total time:",timer.read(),"or",timer.read()/(filecount+dircount)*1000000.0,"us/file"
-    print "Dircount:",dircount,"Filecount",filecount,"Total",dircount+filecount        
-    print "File extensions in archive:", extensions
-        
-    printNow("Extracting tags")
-    timer.start()
-    archive.extractTags()
-    if archive.datasetChanged:
-        elapsedTime = timer.read()
-        print "Tags extracted.  Elapsed time:", elapsedTime, "or", elapsedTime/filecount * 1000, "ms per file, or", elapsedTime/filecount * 100000/60, "Minutes for 100k files"
-        pickle.dumpPickle(archive, verbose = True)
-        archive.datasetChanged = False
-    else:
-        print "No tags changed."
+    archive = get_photo_data(env.options['archive'], env.options['archivepickle'])
+    archive.node_statistics()
+    archive.extract_tags()
     
-    print "Counting unique photos"
-    dupCount = 0
-    timer.start()
-    photoSet = set()
-    for archiveFile in archive.data.keys():
-        if not archive.data[archiveFile].dirflag:
-            md5 = archive.data[archiveFile].thumbnailMD5
-            if md5 in photoSet:
-                dupCount += 1
-            else:
-                photoSet.add(md5)
-    print "Total time:",timer.read(),"or",timer.read()/(filecount+dircount)*1000000.0,"us/file"
-    print "Dircount:",dircount,"Filecount",filecount,"Total",dircount+filecount
-    print "Unique photos",len(photoSet),"(",len(photoSet)*1.0/(dircount+filecount)*100.0,"%) Duplicates:",dupCount,"(",dupCount*1.0/(dircount+filecount)*100.0,"%)"
+    count_unique_photos(archive)
 
     print "Zero-length files:"
     zeroFiles = archive.listZeroLengthFiles()
@@ -80,19 +37,18 @@ def main():
         print ""
           
     timer.start()
-    printNow("Checking candidate directory for inclusion in archive.  Scanning candidates..."),    
-    candidate = photoData("C:\\Users\\scott_jackson\\Pictures\\Uploads\\20120427 Zach Confirmation COPY")
-    printNow("done.  Elapsed time:" + str(timer.read()) + " Extracting tags..."),
+    print_now("Checking candidate directory for inclusion in archive.  Scanning candidates..."),    
+    candidate = get_photo_data("C:\\Users\\scott_jackson\\Pictures\\Uploads\\20120427 Zach Confirmation COPY", None)
+    print_now("done.  Elapsed time:" + str(timer.read()) + " Extracting tags..."),
     timer.start()
-    candidate.extractTags()
-    printNow("Candidate tags extracted.  Elapsed time:" + str(timer.read()))
+    candidate.extract_tags()
 
-    printNow("Looking for duplicates...")
+    print_now("Looking for duplicates...")
     timer.start()
     nodeInArchive = isNodeInArchive(archive, candidate)
-    printNow("Done. Elapsed time:" + str(timer.read()))
+    print_now("Done. Elapsed time:" + str(timer.read()))
     if archive.datasetChanged:
-        pickle.dumpPickle(archive, verbose = True)
+        archive.pickle.dumpPickle(archive)
         archive.datasetChanged = False 
         
     if nodeInArchive:

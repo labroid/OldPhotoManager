@@ -6,16 +6,30 @@ Created on Oct 21, 2011
 '''
 import sys
 import os
+import stopwatch
 import time
 import datetime
 import logging
+from pickle_manager import photo_pickler
 from fileMD5sum import fileMD5sum, stringMD5sum
-from photoFunctions import getTagsFromFile, getTimestampFromTags,\
+from photo_functions import getTagsFromFile, getTimestampFromTags,\
     thumbnailMD5sum, getTagsFromFile, getUserTagsFromTags
-from photoUtils import printNow
+from photo_utils import print_now
+from stopwatch import stopWatch
+from reportlab.lib.randomtext import BLAH
 
-PHOTO_FILES = [".jpg", ".png"]  #Use lower case as comparisons are all cast to lower case
-
+def get_photo_data(root, pickle_path = None):  #Consider None argument for root in case only a pickle is specified
+    if pickle_path == None:
+        node = photoData(root, pickle_path)
+    else:
+        pickle = photo_pickler(pickle_path)
+        if pickle.pickleExists:
+            node = pickle.loadPickle()
+        else:
+            node = photoData(root, pickle)
+            pickle.dumpPickle(node)
+    return(node)
+            
 class photoUnitData():
     
     def __init__(self):
@@ -32,13 +46,19 @@ class photoUnitData():
         self.degenerateParent = False
             
 class photoData:
-    def __init__(self, path):
+    def __init__(self, path, pickle):
         self.data = dict()
         self.path = path
-        self.datasetChanged = False
-        self.dupSizeList = ['NA']
-        self.traverse(self.path, self.sumFileDirSize)
+        self.pickle = pickle
+        self.datasetChanged = False  #Make this an internal variable?
         
+        logger = logging.getLogger(__name__)
+        logger.info("Traversing {0}".format(self.path))
+        timer = stopwatch.stopWatch()
+        timer.start()
+        self.traverse(self.path, self.sumFileDirSize)
+        logger.info("Done. Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.data),timer.read(), timer.read()/len(self.data)))
+            
     def _walkError(self,walkErr):
         global _walkErrorFlag
         print "Error",walkErr.errno, walkErr.strerror
@@ -53,28 +73,30 @@ class photoData:
                 sumFunction(root, dirs, files)
             
     def sumFileDirSize(self, root, dirs, files):
+        logger = logging.getLogger(__name__)
         if root not in self.data:
             total_size = 0
-            for file in files:
-                filename = os.path.join(root, file)
+            for filebase in files:
+                filename = os.path.join(root, filebase)
                 self.data[filename] = photoUnitData()
                 self.data[filename].dirflag = False
                 try:
                     self.data[filename].size = os.path.getsize(filename)
                 except:
-                    self.data[filename].size = "Can't determine size of " + filename
-                    #todo this should be logged and filesize set to -1
+                    self.data[filename].size = -1
+                    logger.error("Can't determine size of {0}".format(filename))
                     break
                 total_size += self.data[filename].size
                 try:
                     self.data[filename].mtime = os.path.getmtime(filename)
                 except:
-                    self.data[filename].mtime = "Can't determine mtime of " + filename
+                    self.data[filename].mtime = -1
+                    logger.error("Can't determine mtime of {}".format(filename))
                     break
-        for dir in dirs:
-            dirname = os.path.join(root, dir)
+        for directory in dirs:
+            dirname = os.path.join(root, directory)
             total_size += self.data[dirname].size
-        if root != '':  #When root is a directory and not just a simple file
+        if root != '':  #When root is a directory and not just a simple root
             self.data[root] = photoUnitData()
             self.data[root].size = total_size
             self.data[root].dirflag = True
@@ -88,47 +110,6 @@ class photoData:
             self.data[filename].fileMD5 = fileMD5sum(filename)
             self.datasetChanged = True
         return(self.data[filename].fileMD5)
-
-
-            
-#    def md5FilesAndDirs(self, root, dirs, files): #Break out duplicate dir finder in a different tool
-#            catenatedMD5 = ''
-#            for file in files:
-#                filename = os.path.join(root, file)
-#                if self.data[filename].fileMD5 == '':
-#                    self.data[filename].fileMD5 = fileMD5sum(filename)
-#                catenatedMD5 += self.data[filename].fileMD5
-#    #            print self.data[filename].fileMD5, filename
-#            for dir in dirs:
-#                dirname = os.path.join(root, dir)
-#                catenatedMD5 += self.data[dirname].fileMD5
-#            if root != '':  #When the incoming root is a directory and not just a file
-#                self.data[root].fileMD5 = stringMD5sum(catenatedMD5)
-#    #        print self.data[root].fileMD5, root
-#    #        print "."
-#    
-#    def listLargestDuplicateTrees(self, count = 1):
-#        if self.dupSizeList[0] == 'NA':
-#            self.findSameSizedTrees()
-#        dupListLength = len(self.dupSizeList)
-#        if dupListLength == 0:
-#            return([])
-#        if dupListLength < count:
-#            count = dupListLength
-#        dupList = []
-#        for i in range(count):
-#            sumSet = []
-#            for node in self.dupSizeList[i]:
-#                print "Summing:",node
-#                self.traverse(node, self.md5FilesAndDirs)
-#                sumSet.append(self.data[node].fileMD5)
-#            print "Set of resulting MD5s",sumSet
-#            if reduce(lambda x, y: x == y, sumSet):
-#                dupList.append(self.dupSizeList[i])
-#                print "Same"
-#            else:
-#                print "Not same"
-#        return(dupList)
         
     def listZeroLengthFiles(self):
         zeroLengthNames = []
@@ -137,88 +118,62 @@ class photoData:
                 zeroLengthNames.append(target)
         return(zeroLengthNames)
             
-#    def findDuplicateSizes(self,fileList):
-#        seen = set()
-#        duplicateSizes=set()
-#        for s in fileList:
-#            if s[1].size in seen:
-#                duplicateSizes.add(s[1].size)
-#            else:
-#                seen.add(s[1].size)
-##Sort list in order of size and remove from list children of nodes
-#        duplicateSizes = sorted(duplicateSizes, reverse = True)
-#        return(duplicateSizes)
-#    
-#    def findSameSizedTrees(self, suppressChildren = True):
-#    #Convert dictionary to list
-#        sizeList = [(k, v) for k, v in self.data.iteritems()]
-#    #Filter out degenerate parent directories
-#        validSizes = filter(lambda x: not x[1].degenerateParent, sizeList)
-#    #Find duplicate file sizes
-#        duplicateSizes = self.findDuplicateSizes(validSizes)
-#            
-#    #Now build a nested list collecting file names of duplicates
-#        self.dupSizeList = []
-#        while len(duplicateSizes) > 0:
-#            print "Length of 'same size' list:", len(duplicateSizes)
-#            dupeSubList = []
-#            for n in validSizes:
-#                if n[1].size == duplicateSizes[0]:
-#                    dupeSubList.append(n[0])
-#            self.dupSizeList.append(dupeSubList)
-#            if suppressChildren: #Prune children from candidate list
-#                for root in dupeSubList:
-#                    for n in validSizes:
-#                        if root in n[0]:
-#                            validSizes.remove(n)
-#            duplicateSizes = self.findDuplicateSizes(validSizes)                 
-#        return()
-#    
-#    def listSameSizedTrees(self, suppressChildren = True):
-#        if len(self.dupSizeList) > 0:
-#            if self.dupSizeList[0] == 'NA': #NA indicates list is initialized by not computed.  Empty list means it is computed but there are no duplicates.
-#                self.findSameSizedTrees(suppressChildren)
-#        return(self.dupSizeList)
-
-    def extractTags(self, filelist = []):
-        logger = logging.getLogger('extractTags')  #Is there some automatic way to get func name??
+    def extract_tags(self, filelist = []):
+        PHOTO_FILES = [".jpg", ".png"]  #Use lower case as comparisons are all cast to lower case
+        timer = stopwatch.stopWatch()
+        timer.start()
+        logger = logging.getLogger(__name__)
         if len(filelist) == 0:
             filelist = self.data.keys()
-        filecount = len(filelist)
-        print "Filecount =",filecount
-        datasetChanged = False
-        for photoFile in filelist:
-            if not self.data[photoFile].dirflag and not self.data[photoFile].gotTags:
-                if str.lower(os.path.splitext(photoFile)[1]) in PHOTO_FILES:
-                    tags = getTagsFromFile(photoFile)
+        total_files = len(filelist)
+        logger.info("Extracting tags.  File count = {0}".format(total_files))
+        file_count = 0
+        for photo_file in filelist:
+            file_count += 1
+            if file_count % 500 == 0:
+                logger.info("{0} of {1} = {2:.2}%, {3:.1} seconds, {4} remaining seconds".format(
+                            file_count, total_files, file_count/total_files * 100.0, timer.read(), 
+                            timer.read() * (1.0 - file_count/total_files)))
+            if not self.data[photo_file].dirflag and not self.data[photo_file].gotTags:
+                if str.lower(os.path.splitext(photo_file)[1]) in PHOTO_FILES:
+                    tags = getTagsFromFile(photo_file)
                     if (tags == None):
-                        self.data[photoFile].gotTags = True
-                        print "Bad tags:",photoFile  #This should be logged
+                        self.data[photo_file].gotTags = True
+                        logger.warn("Bad tags in: {0}".format(photo_file))
                     else:
-                        datasetChanged = True
-                        tags = getTagsFromFile(photoFile)
-                        self.data[photoFile].thumbnailMD5 = thumbnailMD5sum(tags)
-                        self.data[photoFile].userTags = getUserTagsFromTags(tags)
-                        self.data[photoFile].timestamp = getTimestampFromTags(tags)
-                        self.data[photoFile].gotTags = True
-                else:
-                    self.data[photoFile].thumbnailMD5 = self.getFileMD5(photoFile)
-                    self.data[photoFile].gotTags = True
-                    datasetChanged = True
-        return(datasetChanged)
+                        self.datasetChanged = True
+                        tags = getTagsFromFile(photo_file)
+                        self.data[photo_file].thumbnailMD5 = thumbnailMD5sum(tags)
+                        self.data[photo_file].userTags = getUserTagsFromTags(tags)
+                        self.data[photo_file].timestamp = getTimestampFromTags(tags)
+                        self.data[photo_file].gotTags = True
+                else:  #Consider using length instead of MD5 on .mov files?
+                    self.data[photo_file].thumbnailMD5 = self.getFileMD5(photo_file)
+                    self.data[photo_file].gotTags = True
+                    self.datasetChanged = True
+        elapsed_time = timer.read()
+        logger.info("Tags extracted.  Elapsed time: {0:.0} seconds or {1:.0} ms per file = {2:.0} for 100k files".format(elapsed_time, elapsed_time/file_count * 1000, elapsed_time/file_count * 100000/60))
+        if self.pickle != None:
+            self.pickle.dumpPickle(self)
+        return(self.datasetChanged)
     
-#    def extractThumbnailMD5(self, filelist = []):
-#        if len(filelist) == 0:
-#            filelist = self.data.keys()
-#        datasetChanged = False
-#        for file in filelist:
-#            if not self.data[file].dirflag:
-#                if self.data[file].thumbnailMD5 == '':
-#                    self.data[file].thumbnailMD5 = thumbnailMD5sum(self.data[file].tags)
-#                    datasetChanged = True
-#        return(datasetChanged)
+    def node_statistics(self):
+        logger = logging.getLogger(__name__)
+        timer = stopwatch.stopWatch()
+        logger.info("Counting node types in " + self.path)
+        dircount = 0
+        filecount = 0
+        timer.start()
+        extensions = set()
+        for archive_file in self.data.keys():
+            extensions.add(str.lower(os.path.splitext(archive_file)[1]))
+            if self.data[archive_file].dirflag:
+                dircount += 1
+            else:
+                filecount += 1
         
-
+        logger.info("Elapsed time: " + str(timer.read()) + " or " + str(timer.read() / (filecount + dircount) * 1000000.0) + " us/file")
+        logger.info("Dircount: " + str(dircount) + " Filecount " + str(filecount) + " Total " + str(dircount + filecount))
+        logger.info("File extensions in archive:" + str(extensions))
+        return filecount, dircount
         
-        
-    

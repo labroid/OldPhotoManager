@@ -8,7 +8,7 @@ import ConfigParser
 import socket
 import pprint
 
-def printNow(string):
+def print_now(string):
     print string
     sys.stdout.flush()
     return()
