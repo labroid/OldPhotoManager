@@ -21,10 +21,11 @@ def main():
     timer = stopwatch.stopWatch()
     logging.basicConfig(filename = env.options['logfile'], level = logging.DEBUG, filemode = 'w')
     
-    archive = get_photo_data(env.options['archive'], env.options['archivepickle'])
+    archive_file = env.options['archive']
+    archive_pickle_file = env.options['archivepickle']    
+    archive = get_photo_data(archive_file, archive_pickle_file)
     archive.node_statistics()
     archive.extract_tags()
-    
     count_unique_photos(archive)
 
     print "Zero-length files:"

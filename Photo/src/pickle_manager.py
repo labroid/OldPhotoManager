@@ -28,13 +28,14 @@ class photo_pickler:
         return()
         
     def getPickleFile(self, fileMode):
+        logger= logging.getLogger(__name__)
         try:
             pickle_fp = open(self.picklePath, fileMode)
         except IOError as (errno, strerror):
-            print 'Exiting: Fatal Error opening pickle at:', self.picklePath, strerror
+            logger.critical('Exiting: Fatal Error opening pickle at:{0}'.format(self.picklePath, strerror))
             sys.exit(1)
         except:
-            print "Exiting:  Fatal Error opening pickle at:", self.picklePath
+            logger.critical("Exiting:  Fatal Error opening pickle at:".format(self.picklePath))
             sys.exit(1)
         return(pickle_fp)
     

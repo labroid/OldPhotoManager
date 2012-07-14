@@ -16,22 +16,8 @@ from photo_functions import getTagsFromFile, getTimestampFromTags,\
     thumbnailMD5sum, getTagsFromFile, getUserTagsFromTags
 from photo_utils import print_now
 from stopwatch import stopWatch
-from reportlab.lib.randomtext import BLAH
 
-def get_photo_data(root, pickle_path = None):  #Consider None argument for root in case only a pickle is specified
-    if pickle_path == None:
-        node = photoData(root, pickle_path)
-    else:
-        pickle = photo_pickler(pickle_path)
-        if pickle.pickleExists:
-            node = pickle.loadPickle()
-        else:
-            node = photoData(root, pickle)
-            pickle.dumpPickle(node)
-    return(node)
-            
 class photoUnitData():
-    
     def __init__(self):
         self.size=0
         self.mtime = -(sys.maxint - 1) #Set default time to very old
@@ -45,7 +31,7 @@ class photoUnitData():
         self.candidates = []
         self.degenerateParent = False
             
-class photoData:
+class photoData:  #Create a function to update pickle, and an option to auto update on changes (maybe in get tags?)
     def __init__(self, path, pickle):
         self.data = dict()
         self.path = path
@@ -57,7 +43,7 @@ class photoData:
         timer = stopwatch.stopWatch()
         timer.start()
         self.traverse(self.path, self.sumFileDirSize)
-        logger.info("Done. Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.data),timer.read(), timer.read()/len(self.data)))
+        logger.info("Done. Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.data), timer.read(), timer.read()/len(self.data)))
             
     def _walkError(self,walkErr):
         global _walkErrorFlag
@@ -117,6 +103,16 @@ class photoData:
             if self.data[target].size == 0:
                 zeroLengthNames.append(target)
         return(zeroLengthNames)
+    
+    def refresh(self):
+        ''' TODO Rescan photo data and update pickle but only if hostname is same and root node exists
+        '''
+        pass
+    
+    def dump_pickle(self):
+        '''TODO refresh pickle file, usually called if changes were made in photodata.
+        '''
+        pass
             
     def extract_tags(self, filelist = []):
         PHOTO_FILES = [".jpg", ".png"]  #Use lower case as comparisons are all cast to lower case
@@ -176,4 +172,43 @@ class photoData:
         logger.info("Dircount: " + str(dircount) + " Filecount " + str(filecount) + " Total " + str(dircount + filecount))
         logger.info("File extensions in archive:" + str(extensions))
         return filecount, dircount
+    
+def get_photo_data(node_path, pickle_path, node_update = True):
+    ''' Create instance of photo data given one of three cases:
+    1.  Supply only node_path:  Create photo data instance
+    2.  Supply only pickle_path:  load pickle.  Abort if pickle empty.
+    3.  Supply both node_path and pickle_path:  Try to load pickle. 
+                                                If exists:
+                                                    load pickle
+                                                    update pickle unless asked not to
+                                                else:
+                                                    create photo data instance and create pickle
+    
+    all other cases are errors
+    '''
+    logger = logging.getLogger(__name__)
+    if node_path is not None and pickle_path is None:
+        logger.info("Creating photoUnitData instance")
+        node = photoUnitData(node_path)
+    elif node_path is None and pickle_path is not None:
+        logger.info("Unpacking pickle")
+        pickle = photo_pickler(pickle_path)
+        node = pickle.loadPickle()
+    elif node_path is not None and pickle_path is not None:
+        pickle= photo_pickler(pickle_path)
+        if pickle.pickleExists:
+            logger.info("Loading pickle")
+            node = pickle.loadPickle()
+            if node_update:
+                logger.info("Refreshing photo data in pickle")
+                node.refresh()          
+        else:
+            logger.info("Scanning node")
+            node = photoData(node_path)
+            node.pickle = pickle
+            node.dump_pickle()
+    else:
+        logger.critical("function called with arguments:\"{0}\" and \"{1}\"".format(node_path, pickle_path))
+        sys.exit(1)
+        return(node)
         
