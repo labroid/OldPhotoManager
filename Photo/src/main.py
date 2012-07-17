@@ -26,13 +26,16 @@ def main():
     archive = get_photo_data(archive_file, archive_pickle_file)
     archive.node_statistics()
     archive.extract_tags()
-    count_unique_photos(archive)
+    
+    result = count_unique_photos(archive)
+    print "Directories: {0}, Files: {1}, Unique photos: {2}, Duplicates: {3} ({4:.2%})".format(result.dircount, result.filecount, result.unique_count, result.dup_count, result.dup_fraction)
 
-    print "Zero-length files:"
+    
     zeroFiles = archive.listZeroLengthFiles()
     if len(zeroFiles) == 0:
         print "No zero-length files."
     else:
+        print "Zero-length files:"
         for names in zeroFiles:
             print names
         print ""

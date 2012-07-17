@@ -8,6 +8,7 @@ import os
 import datetime
 import logging
 import pyexiv2
+import collections
 import time
 from fileMD5sum import stringMD5sum, fileMD5sum
 from photo_utils import print_now
@@ -76,10 +77,11 @@ def count_unique_photos(archive):
                 dup_count += 1
             else:
                 photo_set.add(md5)
-    
+    unique_count = len(photo_set)
     print "Total time:", timer.read(), "or", timer.read() / (filecount + dircount) * 1000000.0, "us/file"
-    print "Dircount:", dircount, "Filecount", filecount, "Total", dircount + filecount
-    print "Unique photos", len(photo_set), "(", len(photo_set) * 1.0 / (dircount + filecount) * 100.0, "%) Duplicates:", dup_count, "(", dup_count * 1.0 / (dircount + filecount) * 100.0, "%)"
+    uniques = collections.namedtuple('Uniques',['dircount','filecount','unique_count','dup_count','dup_fraction'])
+    return(uniques(dircount, filecount, unique_count, dup_count, dup_count * 1.0 / filecount))
+
 
       
 def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!
