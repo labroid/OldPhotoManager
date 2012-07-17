@@ -1,0 +1,151 @@
+Photo Tools
+
+Primary Goals:
+	Find if a photo/directory/node is in another node
+	Move identified files from current location to purgatory
+	
+Secondary Goals:
+	Check files in right directory
+	Find identical nodes
+	Find empty files
+	
+Find if candidate node exists in archive node
+	Update archive database
+	Update candidate database
+	Traverse candidates
+		if not 'self'
+			if thumb checksum matches
+				if is a photo
+					if tags match
+						compute file MD5
+						if MD5 matches
+							accumulate exact match
+						else
+							accumulate tag match
+					else
+						accumulate thumb match
+				else
+					accumulate exact match
+		If all children exact match, parent matches
+		If any children near match, parent near match
+		If parent missing, parent marked missing
+	return all children match (T/F)
+	
+	Init databases
+		If there is a pickle
+			Load pickle
+		else
+			Create empty data structure
+			
+	Update node database
+		Clear validated flag
+		Traverse filesystem (computing node values depth first as done normally, setting validated flags)
+			if (filesize or mtime changed)
+				if is a photo file:
+					compute thumbnail checksum and file parameters
+					set validated flag
+				else
+					compute file checksum and use for both thumbnail and file sums
+					set validated flag
+		Check each database record
+			if not validated, remove from database
+
+API for Photo Tools	
+	Find if a photo/directory/node already in archive
+	AllInArchive = IsNodeInArchive(archive, node)
+		Data Models
+			photoData
+				photoData.data()
+				photoData.path
+			photoUnitData
+				photoUnitData.isdir = False
+				photoUnitData.Data[path].size
+				photoUnitData.Data[path].mtime
+				photoUnitData.Data[path].timestamp
+				photoUnitData.thumbnailMD5
+				photoUnitData.fileMD5 = ''
+				photoUnitData.userTags = ''
+				photoUnitData.inArchive = False
+				photoUnitData.degenerateParent = False
+				photoUnitData.dirpath
+				photoUnitData.dirnames
+				photoUnitData.filenames
+				photoUnitData.validated
+				photoUnitData.candidates[[filename, thumbMD5match, tagsMatch, fileMD5match]]
+				photoUnitData.dirMatch
+				photoUnitData.dirPartial
+				photoUnitData.dirMissing
+		
+		Data Model 2
+			photoData
+				photoDirs[]
+				PhotoUnitData[]
+				photoData.path
+			photoDirData
+				photoDirs.dirpath
+				photoDirs.dirnames
+				photoDirs.filenames
+				photoDirs.validated
+				photoDirs.exactMatch
+				photoDirs.partialMatch
+				photoDirs.missingMatch
+				photoDirs.degenerate
+			photoUnitData
+				photoUnitData.isdir = False
+				photoUnitData.Data[path].size
+				photoUnitData.Data[path].mtime
+				photoUnitData.Data[path].timestamp
+				photoUnitData.thumbnailMD5
+				photoUnitData.fileMD5 = ''
+				photoUnitData.userTags = ''
+				photoUnitData.inArchive = False
+				photoUnitData.degenerateParent = False
+				photoUnitData.validated
+				photoUnitData.thumbMatch[]
+				photoUnitData.exactMatch[]
+				photoUnitData.tagMatch[]
+				photoUnitData.thumbMatch[]
+
+
+#Old notes	
+Finding if a node is represented in an archive
+    [TODO: take care of special case of a file and not a directory]
+	traverse tree and get thumbnail checksum (and sizes, mtimes, tags, etc while there)
+    traverse candidate tree and get sizes and mtimes
+	for each candidate file 
+		search archive for list of all files with same size
+		remove self from list
+			all_included, all_excluded = processFile()
+		accululate status for root (all_included, all_exclude)
+	
+	for each directory
+		accumulate status for root (all_included, all_exclude)
+			mark directory with accumulated status
+		
+	for root mark with accumulated status
+	
+processFile()
+	if no files with same timestamp in archive
+		mark candidate file for inclusion in archive
+	else
+		if file checksums are identical
+			mark candidate as included
+	return present
+	
+Low computation file sysotem access
+save filename, mtime, size, depth?
+ocmpute all thumbnails and tags in archive
+compute all thumbs and tags in candidiate
+get lists of thumb matches to candidates in archive
+prune 'selfs'
+compare tags for remainders
+compare file checksums for identicals
+move identicals
+tag identical but diff checksums
+tag same thumb different tags
+identify if directory is fully included
+
+function to move files that are in archive
+remove file info from archive database
+
+
