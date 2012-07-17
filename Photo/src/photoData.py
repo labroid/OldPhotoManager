@@ -32,10 +32,10 @@ class photoUnitData():
         self.degenerateParent = False
             
 class photoData:  #Create a function to update pickle, and an option to auto update on changes (maybe in get tags?)
-    def __init__(self, path, pickle):
+    def __init__(self, path):
         self.data = dict()
         self.path = path
-        self.pickle = pickle
+        self.pickle = None
         self.datasetChanged = False  #Make this an internal variable?
         
         logger = logging.getLogger(__name__)
@@ -45,11 +45,10 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
         self.traverse(self.path, self.sumFileDirSize)
         logger.info("Done. Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.data), timer.read(), timer.read()/len(self.data)))
             
-    def _walkError(self,walkErr):
+    def _walkError(self, walkErr):
         global _walkErrorFlag
-        print "Error",walkErr.errno, walkErr.strerror
+        print "Error", walkErr.errno, walkErr.strerror
         raise
-        return()
                 
     def traverse(self, root_in, sumFunction):
         if os.path.isfile(root_in):  #For the case when the root_in is just a file and not a directory
@@ -189,13 +188,13 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     logger = logging.getLogger(__name__)
     if node_path is not None and pickle_path is None:
         logger.info("Creating photoUnitData instance")
-        node = photoUnitData(node_path)
+        node = photoData(node_path)
     elif node_path is None and pickle_path is not None:
         logger.info("Unpacking pickle")
         pickle = photo_pickler(pickle_path)
         node = pickle.loadPickle()
     elif node_path is not None and pickle_path is not None:
-        pickle= photo_pickler(pickle_path)
+        pickle = photo_pickler(pickle_path)
         if pickle.pickleExists:
             logger.info("Loading pickle")
             node = pickle.loadPickle()
