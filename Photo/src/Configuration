@@ -10,3 +10,7 @@ archive = C:\Users\scott_jackson\Pictures\Uploads\156_0611
 archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
 logfile = C:\Users\scott_jackson\Desktop\log.txt
 
+[Homer]
+archive = c:\Users\scott\Pictures
+archivePickle = C:\Users\scott\Desktop\PhotoPickle.txt
+logfile = c:\users\scott\desktop\log.txt

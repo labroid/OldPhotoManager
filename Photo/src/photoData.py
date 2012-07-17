@@ -209,5 +209,5 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     else:
         logger.critical("function called with arguments:\"{0}\" and \"{1}\"".format(node_path, pickle_path))
         sys.exit(1)
-        return(node)
+    return(node)
         
