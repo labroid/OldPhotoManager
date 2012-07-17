@@ -22,7 +22,7 @@ class environment:
         machineNames = config.sections()
         machineName= socket.gethostname()
         if machineName not in machineNames:
-            print "Machine name not known: add info to configuration file"
+            print "Machine name {0} not known: add info to configuration file".format(machineName)
             sys.exit(1)
         optionList = config.options(machineName)
         for option in optionList:

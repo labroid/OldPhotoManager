@@ -32,10 +32,10 @@ class photoUnitData():
         self.degenerateParent = False
             
 class photoData:  #Create a function to update pickle, and an option to auto update on changes (maybe in get tags?)
-    def __init__(self, path, pickle):
+    def __init__(self, path):
         self.data = dict()
         self.path = path
-        self.pickle = pickle
+        self.pickle = ''
         self.datasetChanged = False  #Make this an internal variable?
         
         logger = logging.getLogger(__name__)
@@ -201,7 +201,7 @@ def get_photo_data(node_path, pickle_path, node_update = True):
             node = pickle.loadPickle()
             if node_update:
                 logger.info("Refreshing photo data in pickle")
-                node.refresh()          
+                node.refresh()       
         else:
             logger.info("Scanning node")
             node = photoData(node_path)
@@ -210,5 +210,5 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     else:
         logger.critical("function called with arguments:\"{0}\" and \"{1}\"".format(node_path, pickle_path))
         sys.exit(1)
-        return(node)
+    return(node)
         
