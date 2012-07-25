@@ -48,7 +48,7 @@ def main():
     sys.stdout.flush()
     timer.start()
     for file in archive.data.keys():
-        if not archive.data[file].dirflag:
+        if not archive.data[file].isdir:
             getTags(file)
     print "Tags extracted.  Elapsed time:", timer.read()
     
@@ -56,7 +56,7 @@ def main():
     sys.stdout.flush()
     timer.start()
     for file in archive.data.keys():
-        if not archive.data[file].dirflag:
+        if not archive.data[file].isdir:
             getTimestampFromTags(archive.data[file].tags)
     print "time tags converted in:", timer.read()
     

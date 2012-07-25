@@ -7,8 +7,6 @@ import sys
 import os.path
 import logging
 from cPickle import Pickler, Unpickler
-from photo_utils import print_now
-from stopwatch import stopWatch
 
 class photo_pickler:
     def __init__(self, picklePath):
@@ -21,14 +19,16 @@ class photo_pickler:
         self.check_pickle_path_exists()
         
     def check_pickle_path_exists(self):
+        logger = logging.getLogger()
         if os.path.exists(self.picklePath):
             self.pickleExists = True
         else:
-            self.pickleExists = False 
+            self.pickleExists = False
+            logger.warn('Pickle path does not exist: {0}'.format(self.picklePath))
         return()
         
     def getPickleFile(self, fileMode):
-        logger= logging.getLogger(__name__)
+        logger = logging.getLogger()
         try:
             pickle_fp = open(self.picklePath, fileMode)
         except IOError as (errno, strerror):
@@ -40,25 +40,21 @@ class photo_pickler:
         return(pickle_fp)
     
     def loadPickle(self):
-        logger = logging.getLogger(__name__)
-        timer = stopWatch()
-        timer.start()
+        logger = logging.getLogger()
         logger.info("Unpacking pickle at {0}".format(self.picklePath))
         pickle_fp = self.getPickleFile('rb')
         unpickler = Unpickler(pickle_fp)
         package = unpickler.load()
         pickle_fp.close()
-        logger.info("Unpickle done.  Elapsed time: {0} seconds".format(timer.read()))
+        logger.info("Pickle at {0} unpacked.".format(self.picklePath))
         return(package)
             
     def dumpPickle(self, archive):
-        logger = logging.getLogger(__name__)
-        timer = stopWatch()
-        timer.start()
-        logger.info("Pickling latest results.")
+        logger = logging.getLogger()
+        logger.info("Pickling latest results to {0}.".format(self.picklePath))
         pickle_fp = self.getPickleFile('wb')
         pickler = Pickler(pickle_fp, protocol=2)
         pickler.dump(archive)
         pickle_fp.close()
-        logger.info("Pickling complete.  Elapsed time: {0} seconds".format(timer.read()))
+        logger.info("Pickling complete to {0}".format(self.picklePath))
         return()

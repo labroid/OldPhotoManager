@@ -5,12 +5,15 @@ logfile = /home/scott/PythonPhotos/log.txt
 
 [4DAA1001312]
 #archive = C:\Users\scott_jackson\Pictures
-archive = C:\Users\scott_jackson\Pictures\Uploads\156_0611
+archive = C:\Users\scott_jackson\Pictures\Process\
 #archive = D:\2011
 archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
 logfile = C:\Users\scott_jackson\Desktop\log.txt
+candidate = C:\Users\scott_jackson\Pictures\Uploads
+candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt
 
 [Homer]
 archive = c:\Users\scott\Pictures
 archivePickle = C:\Users\scott\Desktop\PhotoPickle.txt
 logfile = c:\users\scott\desktop\log.txt
+candidatepickle = None

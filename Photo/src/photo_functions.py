@@ -5,86 +5,14 @@ Created on Nov 23, 2011
 '''
 
 import os
-import datetime
+import sys
 import logging
-import pyexiv2
-import collections
-import time
-from fileMD5sum import stringMD5sum, fileMD5sum
-from photo_utils import print_now
-import stopwatch
-
-#def isNodeInArchive(archive, node):
-#    if archive.path == node.path:
-#        print "Error:  Node and Archive have the same root"
-#        return(False) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive
-#    for root, dirs, files in os.walk(node.path, topdown=False):
-#        allFilesInArchive = True
-##        candidate = candidateData()  #This might be better just using variables and not an object
-#        for file in files:
-#            FileInArchive = False
-#            nodeFile = os.path.join(root,file)
-##            timeCandidates = [k for k, v in archive.data.iteritems() if v.timestamp == node.data[nodeFile].timestamp]
-##            timeCandidates = findSameTimestamp(archive, node.data[nodeFile].timestamp)
-#            node.data[nodeFile].candidates = []
-#            for archiveFile in archive.data.keys():
-#                if nodeFile != archiveFile:  #Avoids checking oneself if Node is in Archive - but allows discovery of duplicates elsewhere in archive
-#                    candidatePath = candidateThumbMD5same = candidateThumbAndTagsSame = candidateFileMD5same = None
-#                    if archive.data[archiveFile].thumbnailMD5 == node.data[nodeFile].thumbnailMD5:
-#                        candidatePath = archiveFile
-#                        candidateThumbMD5same = True
-#                        if archive.data[archiveFile].userTags != node.data[nodeFile].userTags:
-#                            candidateThumbAndTagsSame = False
-#                        else:
-#                            candidateThumbAndTagsSame = True
-#                            if fileMD5sum(archiveFile) == fileMD5sum(nodeFile):  #Recomputes archive MD5 repeatedly
-#                                candidateFileMD5same = True
-#                                node.data[nodeFile].inArchive = True
-#                                FileInArchive = True
-#                            else:
-#                                candidateFileMD5same = False
-#                                node.data[nodeFile].inArchive = False
-#                        node.data[nodeFile].candidates.append([candidatePath, candidateThumbMD5same, candidateThumbAndTagsSame, candidateFileMD5same])
-#            allFilesInArchive = allFilesInArchive and FileInArchive
-##            print ".",
-##    print nodeFile,"?=?",archiveFile,":",node.data[nodeFile].candidates,"MD5",candidateFileMD5same,"Tags",candidateThumbAndTagsSame
-#    allDirsInArchive = True
-#    node.data[root].inArchive = True
-#    nodeInArchive = True
-#    for dir in dirs:
-#        nodeInArchive = node.data[dir].inArchive and nodeInArchive
-#    return(nodeInArchive)
-##            pprint.pprint(timeCandidates)
-#    #This should return something (list of candidates?)
-
-
-
-def count_unique_photos(archive):
-    print "Counting unique photos"
-    timer = stopwatch.stopWatch()
-    dup_count = 0
-    dircount = 0
-    filecount = 0
-    timer.start()
-    photo_set = set()
-    for archive_file in archive.data.keys():
-        if archive.data[archive_file].dirflag:
-            dircount += 1
-        else:
-            filecount += 1
-            md5 = archive.data[archive_file].thumbnailMD5
-            if md5 in photo_set:
-                dup_count += 1
-            else:
-                photo_set.add(md5)
-    unique_count = len(photo_set)
-    print "Total time:", timer.read(), "or", timer.read() / (filecount + dircount) * 1000000.0, "us/file"
-    uniques = collections.namedtuple('Uniques',['dircount','filecount','unique_count','dup_count','dup_fraction'])
-    return(uniques(dircount, filecount, unique_count, dup_count, dup_count * 1.0 / filecount))
-
-
+import datetime
+from fileMD5sum import stringMD5sum
+from pickle_manager import photo_pickler
+from photoData import photoData
       
-def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!
+def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!  
     if archive.path == node.path:
         print "Error:  Node and Archive must have different root paths"
         return(False) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive    
@@ -92,10 +20,10 @@ def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it 
 #Create a dictionary using thumbMD5s as the keys for fast lookup    
     archiveTable = {}
     for archiveFile in archive.data.keys():
-        if not archive.data[archiveFile].thumbnailMD5 in archiveTable: 
-            archiveTable[archive.data[archiveFile].thumbnailMD5] = [archiveFile]
-        else:
+        if archive.data[archiveFile].thumbnailMD5 in archiveTable: 
             archiveTable[archive.data[archiveFile].thumbnailMD5].append(archiveFile)
+        else:
+            archiveTable[archive.data[archiveFile].thumbnailMD5] = [archiveFile]
             
     allFilesInArchive = True  #Seed value; logic will falsify if any files missing     
     for root, dirs, files in os.walk(node.path, topdown=False):
@@ -110,7 +38,7 @@ def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it 
                             candidateThumbAndTagsSame = False
                         else:
                             candidateThumbAndTagsSame = True
-                            if archive.getFileMD5(archiveFile) == node.getFileMD5(candidateFile):
+                            if archive.get_file_signature(archiveFile) == node.get_file_signature(candidateFile):
                                 node.data[candidateFile].inArchive = True
                         node.data[candidateFile].candidates.append([archiveFile, candidateThumbAndTagsSame, node.data[candidateFile].inArchive])
             allFilesInArchive = allFilesInArchive and node.data[candidateFile].inArchive
@@ -124,19 +52,19 @@ def isNodeInArchive(archive, node):  #Check "in archive" logic and make sure it 
             node.data[root].inArchive = nodeInArchive
     return(node.data[root].inArchive) 
             
-def findSameTimestamp(collection, targetTime):
-    candidateList = []
-#    filterstring = os.path.sep + targetTime.strftime('%Y') + os.path.sep + targetTime.strftime('%Y%m%d')
-#    filterstring = os.path.sep + targetTime.strftime('%Y%m%d')
-#    print "filterstring=",filterstring
-    for filename in collection.data.keys():
-        print filename, "-->",collection.data[filename].tags['EXIF DateTimeOriginal'],"<--",collection.data[filename].timestamp, targetTime
-        if collection.data[filename].timestamp == targetTime:
-            candidateList.append(filename)
-
-#        if filterstring in filename:
+#def findSameTimestamp(collection, targetTime):
+#    candidateList = []
+##    filterstring = os.path.sep + targetTime.strftime('%Y') + os.path.sep + targetTime.strftime('%Y%m%d')
+##    filterstring = os.path.sep + targetTime.strftime('%Y%m%d')
+##    print "filterstring=",filterstring
+#    for filename in collection.data.keys():
+#        print filename, "-->",collection.data[filename].tags['EXIF DateTimeOriginal'],"<--",collection.data[filename].timestamp, targetTime
+#        if collection.data[filename].timestamp == targetTime:
 #            candidateList.append(filename)
-    return(candidateList)
+#
+##        if filterstring in filename:
+##            candidateList.append(filename)
+#    return(candidateList)
             
 
 #    candidateFiles = filter(lambda x:filterstring in x, collection.data.keys())
@@ -144,39 +72,7 @@ def findSameTimestamp(collection, targetTime):
 #    for file in candidateFiles:
 #        print "Candidate:",file
     
-    
-                
-#def getTagsFromFile(filename):    #Look into pyexif2 here for better speed?
-#    try:
-#        fp = open(filename,'rb')
-#    except:
-#        print "getTagsFromFile():", filename, "can't be opened."
-#        return({})
-#    tags = EXIF.process_file(fp, details = False)
-##    fp.close()  #Runs faster w/o closing the files.  At least on 4500 files.
-#    return(tags)
 
-def getTagsFromFile(filename):
-    logger = logging.getLogger('getTagsFromFile')
-    try:
-        metadata = pyexiv2.ImageMetadata(filename)
-        metadata.read()
-#    except ValueError:
-#        print "getTagsFromFile():", filename, "ValueError"
-#        return(None)
-#    except KeyError:
-#        print "getTagsFromFile():", filename, "KeyError"
-#        return(None)
-#    except TypeError:
-#        print "getTagsFromFile():", filename, "TypeError"
-#        return(None)
-    except IOError as err:  #The file contains data of an unknown image type or file missing or can't be opened
-        logger.warning("getTagesFromFile(): %s IOError, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
-        return(None)
-    except:
-        logger.error("getTagesFromFile(): %s Unknown Error Trapped, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
-        return(None)
-    return(metadata)
 
 def getTimestampFromTags(tags):
     if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
@@ -189,14 +85,102 @@ def thumbnailMD5sum(tags):
     if len(tags.previews) > 0:
         return stringMD5sum(tags.previews[0].data)
     else:
-        return stringMD5sum("")
+        return stringMD5sum("00000000000000000000000000000000")
     
 def getUserTagsFromTags(tags):
-        if 'Xmp.dc.subject' in tags.xmp_keys:
-            return(tags['Xmp.dc.subject'].value)
-        else:
-            return('')
+    if 'Xmp.dc.subject' in tags.xmp_keys:
+        return(tags['Xmp.dc.subject'].value)
+    else:
+        return('NA')
         
+def get_photo_data(node_path, pickle_path, node_update = True):
+    ''' Create instance of photo data given one of three cases:
+    1.  Supply only node_path:  Create photo data instance
+    2.  Supply only pickle_path:  load pickle.  Abort if pickle empty.
+    3.  Supply both node_path and pickle_path:  Try to load pickle. 
+                                                If exists:
+                                                    load pickle
+                                                    update pickle unless asked not to
+                                                else:
+                                                    create photo data instance and create pickle
+    
+    all other cases are errors
+    '''
+    logger = logging.getLogger()
+    if node_path is not None and pickle_path is None:
+        logger.info("Creating photoUnitData instance for {0}".format(node_path))
+        node = photoData(node_path)
+    elif node_path is None and pickle_path is not None:
+        logger.info("Unpacking pickle at {0}".format(pickle_path))
+        pickle = photo_pickler(pickle_path)
+        node = pickle.loadPickle()
+    elif node_path is not None and pickle_path is not None:
+        pickle = photo_pickler(pickle_path)
+        if pickle.pickleExists:
+            logger.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
+            node = pickle.loadPickle()
+            if node_update:
+                logger.info("Refreshing photo data in pickle  **stubbed off**")
+#                node.refresh()          
+        else:
+            logger.info("Scanning node {0}".format(node_path))
+            node = photoData(node_path)
+            node.pickle = pickle
+            node.dump_pickle()
+    else:
+        logger.critical("function called with arguments:\"{0}\" and \"{1}\"".format(node_path, pickle_path))
+        sys.exit(1)
+    return(node)
+
+def listZeroLengthFiles(photos):
+    zeroLengthNames = []
+    for target in photos.data.keys():
+        if photos.data[target].size == 0:
+            zeroLengthNames.append(target)
+    return(zeroLengthNames)
+    
+def get_statistics(photos):
+    class statistics:
+        def __init__(self):
+            self.dircount = 0
+            self.filecount = 0
+            self.unique_count = 0
+            self.dup_count = 0
+            self.dup_fraction = 0
+    logger = logging.getLogger()
+    stats = statistics()
+    photo_set = set()
+    for archive_file in photos.data.keys():
+        if photos.data[archive_file].isdir:
+            stats.dircount += 1
+        else:
+            stats.filecount += 1
+            md5 = photos.data[archive_file].thumbnailMD5
+            if md5 in photo_set:
+                stats.dup_count += 1
+            else:
+                photo_set.add(md5)
+    stats.unique_count = len(photo_set)
+    stats.dup_fraction = stats.dup_count * 1.0 / stats.filecount
+    logger.info("Collection statistics:  Directories = {0}, Files = {1}, Unique signatures = {2}, Duplicates = {3}, Duplicate Fraction = {4.2%}".format(
+        stats.dircount, stats.filecount, stats.unique_count, stats.dup_count, stats.dup_fraction))    
+    return(stats)
+            
+def print_statistics(photos):
+    result = get_statistics(photos)
+    print "Directories: {0}, Files: {1}, Unique photos: {2}, Duplicates: {3} ({4:.2%})".format(result.dircount, result.filecount, result.unique_count, result.dup_count, result.dup_fraction)
+    return
+
+def print_zero_files(photos):
+    zeroFiles = listZeroLengthFiles(photos)
+    if len(zeroFiles) == 0:
+        print "No zero-length files."
+    else:
+        print "Zero-length files:"
+        for names in zeroFiles:
+            print names
+        print ""
+    
 #def getTimestampFromTagsOld(tags):
 #    defaultTimestamp = datetime.datetime.strptime('1950:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
 #    if 'EXIF DateTimeOriginal' in tags:

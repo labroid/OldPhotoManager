@@ -4,12 +4,15 @@ Created on Oct 18, 2011
 @author: scott_jackson
 '''
 import hashlib
+import logging
+import os
 
 def fileMD5sum(filePath):
+    logger = logging.getLogger()
     try:
         fp = open(filePath, 'rb')
     except:
-        #TODO:  Log a file opening failure here
+        logger.warning("Couldn't open file {0}.  Setting to default".format(filePath))
         return("FFFFFFFFFFFFFFFF")
     m = hashlib.md5()
     while True:
@@ -17,9 +20,30 @@ def fileMD5sum(filePath):
         if not data:
             break
         m.update(data)
+    fp.close()
     return m.hexdigest() 
 
 def stringMD5sum(string):
     m = hashlib.md5()
     m.update(string)
     return m.hexdigest()
+
+def truncatedMD5sum(filepath, length = 1024):
+    ''' given a length (default to 1024 bytes), compute the MD5 sum on the
+    string formed by the first length/2 and last length/2 characters of
+    the file.  Used, for example, to get a pretty good signature for a
+    large .mov file
+    '''
+    logger = logging.getLogger()
+    try:
+        fp = open(filepath, 'rb')
+    except:
+        logger.warning("Couldn't open file {0}.  Setting to default".format(filepath))
+        return("FFFFFFFFFFFFFFFF")
+    data = fp.read(length/2)
+    fp.seek(-length/2, os.SEEK_END)
+    data = data + fp.read(length/2)
+    fp.close()
+    truncated_sum = stringMD5sum(data)
+    return truncated_sum 
+        
