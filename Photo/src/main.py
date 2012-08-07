@@ -9,6 +9,7 @@ TODO:
 3. Make configuration file universal (use in all functions) if needed
 '''
 import sys
+from collections import defaultdict
 import stopwatch
 #from photo_functions import isNodeInArchive, get_photo_data
 from photo_utils import print_now, environment
@@ -19,18 +20,35 @@ def main():
     timer = stopwatch.stopWatch()
     
     #Get the archive database
+#    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
     archive = photo_functions.get_photo_data(env.get('archive'), env.get('archivepickle'))
-    archive.extract_tags()    
-    archive.dump_pickle()
+#    archive.dump_pickle()
     print "For {0}".format(archive.path)
     photo_functions.print_statistics(archive)
-    photo_functions.print_zero_files(archive)
+    photo_functions.print_zero_length_files(archive)
 
     #Now get candidate database
-    candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
-    candidate.extract_tags()
-    photo_functions.print_statistics(candidate)
-    photo_functions.print_zero_files(candidate)
+    #candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
+#    candidate = photo_functions.get_photo_data(None, env.get('candidatepickle'))
+#    candidate.extract_populate_tags()
+#    photo_functions.print_statistics(candidate)
+#    photo_functions.print_zero_files(candidate)
+    
+    photo_functions.populate_duplicate_candidates(archive, archive)
+    
+    duparray=defaultdict()
+    for photo in archive.data.keys():
+        if len(archive.data[photo].candidates) != 0:
+            duparray[archive.data[photo].size * len(archive.data[photo].candidates)] = photo
+    print "Number of duplicate files = ",len(duparray)
+    orderedkeys = sorted(duparray.keys(), reverse = True)
+    count=0
+    for x in orderedkeys:
+        print duparray[x], x/1000000000, "GB", archive.data[duparray[x]].candidates
+        for y in archive.data[duparray[x]].candidates:
+            print "    ",y, ">",archive.data[y].signature,"<", archive.data[y].size
+        count += 1
+        if count > 3: break
     sys.exit()
 
     print_now("Looking for duplicates...")

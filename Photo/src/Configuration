@@ -8,6 +8,7 @@ logfile = /home/scott/PythonPhotos/log.txt
 archive = C:\Users\scott_jackson\Pictures\Process\
 #archive = D:\2011
 archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
+#archivePickle = C:\Users\scott_jackson\Desktop\BarneyFullArchivePickle.txt
 logfile = C:\Users\scott_jackson\Desktop\log.txt
 candidate = C:\Users\scott_jackson\Pictures\Uploads
 candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt
