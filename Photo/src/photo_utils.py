@@ -13,23 +13,27 @@ def print_now(string):
     sys.stdout.flush()
     return()
 
+def get_hostname():
+    '''Return hostname of local machine'''
+    return(socket.gethostname())
+
 class environment:
+    '''Read environment file and establish envirioment variable dictionary'''
     def __init__(self, config_file):
         self.__options = {}     
         config = ConfigParser.ConfigParser()
         config.read(config_file)
-        machineName= socket.gethostname()
-        if machineName not in config.sections():
-            raise NameError("Machine name {0} not known: add info to configuration file".format(machineName))
-        else:
-            for option in config.options(machineName):
-                self.__options[option]=config.get(machineName, option)
-            self.__options['machinename'] = machineName
-            LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
-            logging.basicConfig(filename = self.__options['logfile'], format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
-            self.__logger = logging.getLogger(__name__)
-            self.__logger.info("Configuration file read; environment variables established for machine {0}".format(machineName))
-            return  
+        machine_name = get_hostname()
+        if machine_name not in config.sections():
+            raise NameError("Machine name {0} not known: add info to configuration file".format(machine_name))
+        for option in config.options(machine_name):
+            self.__options[option] = config.get(machine_name, option)
+        self.__options['machinename'] = machine_name
+        LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+        logging.basicConfig(filename = self.__options['logfile'], format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
+        self.__logger = logging.getLogger(__name__)
+        self.__logger.info("Configuration file read; environment variables established for machine {0}".format(machine_name))
+        return  
                           
     def get(self,variable):
         if variable in self.__options:
@@ -38,4 +42,4 @@ class environment:
             err_msg = "Environment variable doesn't exist: {0}".format(variable)
             self.__logger.error(err_msg)
             raise NameError(err_msg)
-            
+        

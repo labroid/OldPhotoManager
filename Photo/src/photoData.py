@@ -12,6 +12,7 @@ import logging
 import pyexiv2
 from fileMD5sum import fileMD5sum, truncatedMD5sum
 import photo_functions
+from photo_utils import get_hostname
 
 class photoUnitData:  #Put this class def inside photoData?
     def __init__(self):
@@ -30,9 +31,9 @@ class photoUnitData:  #Put this class def inside photoData?
         
 class photoData:  #Create a function to update pickle, and an option to auto update on changes (maybe in get tags?)
     def __init__(self, path):
-        self.host = ''
-        self.path = path
-        self.data = dict()
+        self.host = get_hostname()
+        self.path = os.path.normpath(path)
+        self.photo = dict()
         self.pickle = None
         self.datasetChanged = False
         logger = logging.getLogger()
@@ -43,27 +44,27 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
         self.extract_tree(self.path)
         self.populate_file_stats()
         self.extract_populate_tags()
-        logger.info("Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.data), timer.read(), timer.read()/len(self.data)))
-        logger.info("Computing cumulative sizes for file tree")
+        logger.info("Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.photo), timer.read(), timer.read()/len(self.photo)))
+        logger.info("Computing cumulative sizes for file tree")  #Logged here since function is recursive
         photo_functions.populate_tree_sizes(self)
-        logger.info("Computing cumulative signature for file tree")
+        logger.info("Computing cumulative signature for file tree")  #Logged here since function is recursive
         photo_functions.populate_tree_signatures(self)
         
     def extract_tree(self, top):
         logger = logging.getLogger()
         logger.info("Extracting tree for {0}".format(top))
         if os.path.isfile(top):  #Handle the case of a file as os.walk does not handle files
-            self.data[top] = photoUnitData()
+            self.photo[top] = photoUnitData()
         else:
             for dirpath, dirnames, filenames in os.walk(top, onerror = self._walkError):
                 dirpaths = [os.path.join(dirpath, dirname) for dirname in dirnames]
                 filepaths = [os.path.join(dirpath, filename) for filename in filenames]
-                self.data[dirpath] = photoUnitData()
-                self.data[dirpath].isdir = True
-                self.data[dirpath].dirpaths = dirpaths
-                self.data[dirpath].filepaths = filepaths
+                self.photo[dirpath] = photoUnitData()
+                self.photo[dirpath].isdir = True
+                self.photo[dirpath].dirpaths = dirpaths
+                self.photo[dirpath].filepaths = filepaths
                 for filepath in filepaths:
-                    self.data[filepath] = photoUnitData()    
+                    self.photo[filepath] = photoUnitData()    
         logger.info("Done extracting tree for {0}".format(top))
 
     def _walkError(self, walkErr):
@@ -74,23 +75,23 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
     def populate_file_stats(self):
         logger = logging.getLogger()
         logger.info('Populating file stats for {0}'.format(self.path))
-        for filepath in self.data.keys():  
+        for filepath in self.photo.keys():  
             if os.path.isfile(filepath):          
                 try:
                     file_stat = os.stat(filepath)
                 except:
-                    self.data[filepath].size = -1
-                    self.data[filepath].mtime = -1
+                    self.photo[filepath].size = -1
+                    self.photo[filepath].mtime = -1
                     logger.error("Can't stat file at {0}".format(filepath))
                     raise
-                self.data[filepath].size = file_stat.st_size
-                self.data[filepath].mtime = file_stat.st_mtime
+                self.photo[filepath].size = file_stat.st_size
+                self.photo[filepath].mtime = file_stat.st_mtime
         logger.info('Done populating file stats for {0}'.format(self.path))
 
     def get_file_signature(self, filename):
         LENGTH_LIMIT = 1048576  #Max length for a non-PHOTO_FILES, otherwise a truncated MD5 is computed
-        if self.data[filename].fileMD5 == '':
-            if self.data[filename].size < LENGTH_LIMIT:
+        if self.photo[filename].fileMD5 == '':
+            if self.photo[filename].size < LENGTH_LIMIT:
                 signature = fileMD5sum(filename)
             else:
                 signature = truncatedMD5sum(filename, LENGTH_LIMIT)
@@ -98,7 +99,7 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
         
 
 #    def refresh(self):
-#        ''' TODO Rescan photo data and update pickle but only if hostname is same and root node exists
+#        ''' TODO Rescan photo photo and update pickle but only if hostname is same and root node exists
 #            Update node database
 #        Check if in same host
 #        Clear validated flag
@@ -113,8 +114,8 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
 #        Check each database record
 #            if not validated, remove from database
 #        '''
-##        for element in self.data.keys():
-##            self.data[element].inArchive = False
+##        for element in self.photo.keys():
+##            self.photo[element].inArchive = False
 ##        self.traverse(self.path, refresher)
 ##        
 ##    def refresher(self, root, dirs, files):
@@ -123,33 +124,34 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
     def extract_populate_tags(self, filelist = []):
         logger = logging.getLogger()
         PHOTO_FILES = [".jpg", ".png"]  #Use lower case as extensions will be cast to lower case for comparison
+        PROGRESS_COUNT = 500 #How often to report progress in units of files
         timer = stopwatch.stopWatch() #Also starts watch
         if len(filelist) == 0:
-            filelist = self.data.keys()
+            filelist = self.photo.keys()
         total_files = len(filelist)
         logger.info("Extracting tags for {0}.  File count = {1}".format(self.path, total_files))
         file_count = 0
         for photo_file in filelist:
             file_count += 1
-            if file_count % 500 == 0:
+            if not file_count % PROGRESS_COUNT:
                 logger.info("{0} of {1} = {2:.2}%, {3:.1f} seconds, {4:.2f} remaining seconds".format(
                             file_count, total_files, 1.0 * file_count / total_files * 100.0, timer.read(), 
-                            timer.read() / file_count * (total_files - file_count)))
-            if not self.data[photo_file].isdir and not self.data[photo_file].gotTags:
+                            timer.read() / file_count * float(total_files - file_count))) #TODO Something is wrong with this - time is way off
+            if not self.photo[photo_file].isdir and not self.photo[photo_file].gotTags:
                 if str.lower(os.path.splitext(photo_file)[1]) in PHOTO_FILES:
                     tags = self.getTagsFromFile(photo_file)
                     if (tags == None):
-                        self.data[photo_file].gotTags = True
+                        self.photo[photo_file].gotTags = True
                         logger.warn("Bad tags in: {0}".format(photo_file))
                     else:
-                        self.data[photo_file].signature = photo_functions.thumbnailMD5sum(tags)
-                        self.data[photo_file].userTags = photo_functions.getUserTagsFromTags(tags)
-                        self.data[photo_file].timestamp = photo_functions.getTimestampFromTags(tags)
-                        self.data[photo_file].gotTags = True                        
+                        self.photo[photo_file].signature = photo_functions.thumbnailMD5sum(tags)
+                        self.photo[photo_file].userTags = photo_functions.getUserTagsFromTags(tags)
+                        self.photo[photo_file].timestamp = photo_functions.getTimestampFromTags(tags)
+                        self.photo[photo_file].gotTags = True                        
                         self.datasetChanged = True
                 else:
-                    self.data[photo_file].signature = self.get_file_signature(photo_file)
-                    self.data[photo_file].gotTags = True
+                    self.photo[photo_file].signature = self.get_file_signature(photo_file)
+                    self.photo[photo_file].gotTags = True
                     self.datasetChanged = True
         elapsed_time = timer.read()
         logger.info("Tags extracted.  Elapsed time: {0:.0} seconds or {1:.0} ms per file = {2:.0} for 100k files".format(elapsed_time, elapsed_time/file_count * 1000, elapsed_time/file_count * 100000/60))
@@ -169,7 +171,7 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
     #    except TypeError:
     #        print "getTagsFromFile():", filename, "TypeError"
     #        return(None)
-        except IOError as err:  #The file contains data of an unknown image type or file missing or can't be opened
+        except IOError as err:  #The file contains photo of an unknown image type or file missing or can't be opened
             logger.warning("getTagesFromFile(): %s IOError, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
             return(None)
         except:
