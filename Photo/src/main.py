@@ -21,8 +21,8 @@ def main():
 #    archive.dump_pickle()  #TODO make sure pickle dumps happen at the right places
     print "For {0}".format(archive.path)
     photo_functions.print_statistics(archive)
-    photo_functions.print_zero_length_files(archive)
-    photo_functions.print_tree(archive)
+#    photo_functions.print_zero_length_files(archive)
+#    photo_functions.print_tree(archive)
 
     #Now get candidate database
     #candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
@@ -36,7 +36,7 @@ def main():
     duparray=defaultdict()
     for photo in archive.photo.keys():
         if len(archive.photo[photo].candidates) != 0:
-            print "Main Duplicate:",photo,archive.photo[photo].candidates
+#            print "Main Duplicate:",photo,archive.photo[photo].candidates
             duparray[archive.photo[photo].size * len(archive.photo[photo].candidates)] = photo
     print "Number of duplicate files = ",len(duparray)
     orderedkeys = sorted(duparray.keys(), reverse = True)
@@ -46,7 +46,7 @@ def main():
         for y in archive.photo[duparray[x]].candidates:
             print "    ",y, ">",archive.photo[y].signature,"<", archive.photo[y].size
         count += 1
-        if count > 3: break
+        if count > 10: break
     sys.exit()
 
     print_now("Looking for duplicates...")

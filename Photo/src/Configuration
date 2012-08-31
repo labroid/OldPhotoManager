@@ -18,3 +18,8 @@ archive = c:\Users\scott\Pictures
 archivePickle = C:\Users\scott\Desktop\PhotoPickle.txt
 logfile = c:\users\scott\desktop\log.txt
 candidatepickle = None
+
+[barney]
+archive = /home/shared/Photos/
+archivePickle = /home/scott/Desktop/src/pickle.txt
+logfile = /home/scott/Desktop/src/log.txt

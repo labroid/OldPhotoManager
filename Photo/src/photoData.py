@@ -6,6 +6,7 @@ Created on Oct 21, 2011
 '''
 import sys
 import os
+import time
 import stopwatch
 import datetime
 import logging
@@ -125,7 +126,9 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
         logger = logging.getLogger()
         PHOTO_FILES = [".jpg", ".png"]  #Use lower case as extensions will be cast to lower case for comparison
         PROGRESS_COUNT = 500 #How often to report progress in units of files
-        timer = stopwatch.stopWatch() #Also starts watch
+#        timer = stopwatch.stopWatch() #Also starts watch
+        start_time = time.time()
+        logger.info("Start time = {0}".format(start_time))
         if len(filelist) == 0:
             filelist = self.photo.keys()
         total_files = len(filelist)
@@ -134,9 +137,9 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
         for photo_file in filelist:
             file_count += 1
             if not file_count % PROGRESS_COUNT:
-                logger.info("{0} of {1} = {2:.2}%, {3:.1f} seconds, {4:.2f} remaining seconds".format(
-                            file_count, total_files, 1.0 * file_count / total_files * 100.0, timer.read(), 
-                            timer.read() / file_count * float(total_files - file_count))) #TODO Something is wrong with this - time is way off
+				elapsed_time = time.time() - start_time
+				logger.info("Time = {0}".format(time.time()))
+				logger.info("{0} of {1} = {2:.2}%, {3:.1f} seconds, {4:.2f} remaining seconds".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, elapsed_time / file_count * float(total_files - file_count))) #TODO Something is wrong with this - time is way off
             if not self.photo[photo_file].isdir and not self.photo[photo_file].gotTags:
                 if str.lower(os.path.splitext(photo_file)[1]) in PHOTO_FILES:
                     tags = self.getTagsFromFile(photo_file)
@@ -153,7 +156,7 @@ class photoData:  #Create a function to update pickle, and an option to auto upd
                     self.photo[photo_file].signature = self.get_file_signature(photo_file)
                     self.photo[photo_file].gotTags = True
                     self.datasetChanged = True
-        elapsed_time = timer.read()
+        elapsed_time = time.time() - start_time
         logger.info("Tags extracted.  Elapsed time: {0:.0} seconds or {1:.0} ms per file = {2:.0} for 100k files".format(elapsed_time, elapsed_time/file_count * 1000, elapsed_time/file_count * 100000/60))
         return(self.datasetChanged)
     
