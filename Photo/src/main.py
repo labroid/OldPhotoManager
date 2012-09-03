@@ -5,7 +5,6 @@ Created on Oct 21, 2011
 
 TODO:
 1. Think about how this will behave filling out database with new roots (e.g. root changes)
-2. Make sure we can use one database for comparisons DONE
 '''
 import sys
 from collections import defaultdict
@@ -17,7 +16,7 @@ def main():
     env = environment('Configuration')
 #Get the archive database
 #    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
-    archive = photo_functions.get_photo_data(env.get('archive'), env.get('archivepickle'))
+    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
 #    archive.dump_pickle()  #TODO make sure pickle dumps happen at the right places
     print "For {0}".format(archive.path)
     photo_functions.print_statistics(archive)

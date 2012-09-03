@@ -18,7 +18,7 @@ def get_hostname():
     return(socket.gethostname())
 
 class environment:
-    '''Read environment file and establish envirioment variable dictionary'''
+    '''Read environment file and establish environment variable dictionary'''
     def __init__(self, config_file):
         self.__options = {}     
         config = ConfigParser.ConfigParser()

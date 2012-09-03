@@ -14,7 +14,7 @@ from pickle_manager import photo_pickler
 from photoData import photoData
       
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
-	''' 
+    ''' 
 	Replaces the .candidates list property for each element of the node_path as follows:
 	if archive and node are the different:
 		.candidate property is updated for all files
@@ -25,50 +25,49 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
 			.candidate property is updated for all files under node_path tree
 	TODO:  This still needs work; not all collection/file combinations are supported
 	'''    
-	
-	logger = logging.getLogger()
-	
-	if archive_path == None:
-	archive_path = archive.path
-	if node_path == None:
-		node_path = node.path
-		
-	logger.info("Building signature hash table for {0}".format(archive.path)) 
-	archiveTable = {}
-	for archiveFile in archive.photo.keys():
-		if archive.photo[archiveFile].signature in archiveTable:
-			archiveTable[archive.photo[archiveFile].signature].append(archiveFile)
-		else:
-			archiveTable[archive.photo[archiveFile].signature] = [archiveFile]
-			
-	logger.info("Finding duplicates...")
-	file_count = 0
-	if archive != node:
-		for nodefile in node.photo.keys():
-			if node.photo[nodefile].signature in archiveTable:
-				node.photo[nodefile].candidates = deepcopy(archiveTable[node.photo[nodefile].signature])
-			else:
-				node.photo[nodefile].candidates = []
-	else:
-		if archive_path == node_path:
-			for nodefile in node.photo.keys():
-				file_count += 1
-				if file_count % 1000 == 0:
-					print "File count:", file_count
-				if node.photo[nodefile].signature in archiveTable:
-					#if len(archiveTable[node.photo[nodefile].signature]) > 1: 
-					#    print "Duplicate:",nodefile, "Candidates",archiveTable[node.photo[nodefile].signature]
-					node.photo[nodefile].candidates = deepcopy(archiveTable[node.photo[nodefile].signature])
-				else:
-					node.photo[nodefile].candidates = []
-			for nodefile in node.photo.keys():
-				if nodefile in node.photo[nodefile].candidates:
-					node.photo[nodefile].candidates.remove(nodefile)
-		else:  #Remove all candidates that share the node_path root
-			logger.error("***STUBBED OFF*** TODO Finish this function before doing subdirectory compares between collections")
-			print "***STUBBED OFF*** TODO subdirectory searches not yet supported."
-			sys.exit(1)
-	logger.info("Done populating candidate properties")
+    logger = logging.getLogger()
+    
+    if archive_path == None:
+        archive_path = archive.path
+    if node_path == None:
+        node_path = node.path
+        
+    logger.info("Building signature hash table for {0}".format(archive.path)) 
+    archiveTable = {}
+    for archiveFile in archive.photo.keys():
+        if archive.photo[archiveFile].signature in archiveTable:
+            archiveTable[archive.photo[archiveFile].signature].append(archiveFile)
+        else:
+            archiveTable[archive.photo[archiveFile].signature] = [archiveFile]
+            
+    logger.info("Finding duplicates...")
+    file_count = 0
+    if archive != node:
+        for nodefile in node.photo.keys():
+            if node.photo[nodefile].signature in archiveTable:
+                node.photo[nodefile].candidates = deepcopy(archiveTable[node.photo[nodefile].signature])
+            else:
+                node.photo[nodefile].candidates = []
+    else:
+        if archive_path == node_path:
+            for nodefile in node.photo.keys():
+                file_count += 1
+                if file_count % 1000 == 0:
+                    print "File count:", file_count
+                if node.photo[nodefile].signature in archiveTable:
+                    #if len(archiveTable[node.photo[nodefile].signature]) > 1: 
+                    #    print "Duplicate:",nodefile, "Candidates",archiveTable[node.photo[nodefile].signature]
+                    node.photo[nodefile].candidates = deepcopy(archiveTable[node.photo[nodefile].signature])
+                else:
+                    node.photo[nodefile].candidates = []
+            for nodefile in node.photo.keys():
+                if nodefile in node.photo[nodefile].candidates:
+                    node.photo[nodefile].candidates.remove(nodefile)
+        else:  #Remove all candidates that share the node_path root
+            logger.error("***STUBBED OFF*** TODO Finish this function before doing subdirectory compares between collections")
+            print "***STUBBED OFF*** TODO subdirectory searches not yet supported."
+            sys.exit(1)
+    logger.info("Done populating candidate properties")
                 
 def is_node_in_archive(archive, node, archive_path = None, node_path = None):  #TODO finish this function...just started and it's a mess.
     '''Determine if node is in archive.
