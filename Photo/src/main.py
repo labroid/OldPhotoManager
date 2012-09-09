@@ -7,17 +7,19 @@ TODO:
 1. Think about how this will behave filling out database with new roots (e.g. root changes)
 '''
 import sys
+import logging
 from collections import defaultdict
-import stopwatch
-from photo_utils import print_now, environment
+from photo_utils import environment
 import photo_functions
+import pickle_manager
 
 def main():
     env = environment('Configuration')
+    logger = logging.getLogger()
 #Get the archive database
 #    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
-    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
-#    archive.dump_pickle()  #TODO make sure pickle dumps happen at the right places
+    archive = photo_functions.get_photo_data(env.get('archive'), env.get('archivepickle'))
+#    pickle_manager.dump_pickle(archive)  #TODO make sure pickle dumps happen at the right places
     print "For {0}".format(archive.path)
     photo_functions.print_statistics(archive)
 #    photo_functions.print_zero_length_files(archive)
@@ -31,6 +33,8 @@ def main():
 #    photo_functions.print_zero_files(candidate)
     
     photo_functions.populate_duplicate_candidates(archive, archive)
+    print "Finished!"
+    sys.exit()
     
     duparray=defaultdict()
     for photo in archive.photo.keys():
@@ -48,25 +52,26 @@ def main():
         if count > 10: break
     sys.exit()
 
-    print_now("Looking for duplicates...")
-    timer = stopwatch.stopWatch()
-    nodeInArchive = photo_functions.is_node_in_archive(archive, candidate)
-    print_now("Done. Elapsed time:" + str(timer.read()))
-        
-    if nodeInArchive:
-        print "Whole node is in archive"
-    else:
-        print "Part of node is in archive"
-    print "Files in archive:"
-    for candidateFile in candidate.photo.keys():
-        if not candidate.photo[candidateFile].isdir and candidate.photo[candidateFile].inArchive:
-            print candidateFile, candidate.photo[candidateFile].candidates
-    print "Files not in archive:"
-    for candidateFile in candidate.photo.keys():
-        if not candidate.photo[candidateFile].isdir and not candidate.photo[candidateFile].inArchive:
-            print candidateFile, candidate.photo[candidateFile].timestamp    
-    print "Done"
-#Probably should clean the duplicate status etc. between runs to avoid carry forward from pickle          
-    
+#    print_now("Looking for duplicates...")
+#    timer = stopwatch.stopWatch()
+#    nodeInArchive = photo_functions.is_node_in_archive(archive, candidate)
+#    print_now("Done. Elapsed time:" + str(timer.read()))
+#        
+#    if nodeInArchive:
+#        print "Whole node is in archive"
+#    else:
+#        print "Part of node is in archive"
+#    print "Files in archive:"
+#    for candidateFile in candidate.photo.keys():
+#        if not candidate.photo[candidateFile].isdir and candidate.photo[candidateFile].inArchive:
+#            print candidateFile, candidate.photo[candidateFile].candidates
+#    print "Files not in archive:"
+#    for candidateFile in candidate.photo.keys():
+#        if not candidate.photo[candidateFile].isdir and not candidate.photo[candidateFile].inArchive:
+#            print candidateFile, candidate.photo[candidateFile].timestamp    
+#    print "Done"
+##Probably should clean the duplicate status etc. between runs to avoid carry forward from pickle          
+#    
 if __name__ == '__main__':
     main()
+

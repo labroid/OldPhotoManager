@@ -9,9 +9,9 @@ import sys
 import logging
 import datetime
 from copy import deepcopy
-from fileMD5sum import stringMD5sum
 from pickle_manager import photo_pickler
-from photoData import photoData
+from photo_data import create_collection
+import MD5sums
       
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
     ''' 
@@ -35,10 +35,10 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
     logger.info("Building signature hash table for {0}".format(archive.path)) 
     archiveTable = {}
     for archiveFile in archive.photo.keys():
-        if archive.photo[archiveFile].signature in archiveTable:
-            archiveTable[archive.photo[archiveFile].signature].append(archiveFile)
+        if archive[archiveFile].signature in archiveTable:
+            archiveTable[archive[archiveFile].signature].append(archiveFile)
         else:
-            archiveTable[archive.photo[archiveFile].signature] = [archiveFile]
+            archiveTable[archive[archiveFile].signature] = [archiveFile]
             
     logger.info("Finding duplicates...")
     file_count = 0
@@ -50,14 +50,11 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
                 node.photo[nodefile].candidates = []
     else:
         if archive_path == node_path:
-            for nodefile in node.photo.keys():
-                file_count += 1
+            for file_count, nodefile in enumerate(node.photo.keys(), start = 1):
                 if file_count % 1000 == 0:
                     print "File count:", file_count
-                if node.photo[nodefile].signature in archiveTable:
-                    #if len(archiveTable[node.photo[nodefile].signature]) > 1: 
-                    #    print "Duplicate:",nodefile, "Candidates",archiveTable[node.photo[nodefile].signature]
-                    node.photo[nodefile].candidates = deepcopy(archiveTable[node.photo[nodefile].signature])
+                if node[nodefile].signature in archiveTable:
+                    node[nodefile].candidates = deepcopy(archiveTable[node[nodefile].signature])
                 else:
                     node.photo[nodefile].candidates = []
             for nodefile in node.photo.keys():
@@ -69,56 +66,59 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
             sys.exit(1)
     logger.info("Done populating candidate properties")
                 
-def is_node_in_archive(archive, node, archive_path = None, node_path = None):  #TODO finish this function...just started and it's a mess.
-    '''Determine if node is in archive.
-    if archive and node are different:
-        return True if node_path of node is contained within archive_path of archive
-    else:
-        return True if node_path of 
-    '''
-    
-    if archive_path == None:
-        archive_path = archive.path
-    if node_path == None:
-        node_path = node.path
-    allFilesInArchive = True  #Seed value; logic will falsify if any files missing     
-    
-    for dirpath in node.photo[node_path].dirpaths:
-       allFilesInArchive = allFilesInArchive and is_node_in_archive(archive, node, archive_path, node_path) 
-    for filepath in photos.photo[top].filepaths:
-        allFilesInArchive = allFilesInArchive    
-        
-    for root, dirs, files in os.walk(node.path, topdown=False):
-        for nodeFile in files:
-            candidateFile = os.path.join(root,nodeFile)
-            node.photo[candidateFile].candidates = []
-            node.photo[candidateFile].inArchive = False #Assume it is not in archive unless proven otherwise
-            if node.photo[candidateFile].signature in archiveTable:
-                for archiveFile in archiveTable[node.photo[candidateFile].signature]:
-                    if archiveFile != candidateFile:  #Don't compare to oneself in case candidate path is in archive path  
-                        if archive.photo[archiveFile].userTags != node.photo[candidateFile].userTags:
-                            candidateThumbAndTagsSame = False
-                        else:
-                            candidateThumbAndTagsSame = True
-                            if archive.get_file_signature(archiveFile) == node.get_file_signature(candidateFile):
-                                node.photo[candidateFile].inArchive = True
-                        node.photo[candidateFile].candidates.append([archiveFile, candidateThumbAndTagsSame, node.photo[candidateFile].inArchive])
-            allFilesInArchive = allFilesInArchive and node.photo[candidateFile].inArchive
-    
-        if not allFilesInArchive:
-            nodeInArchive = False
-        else:
-            nodeInArchive = True
-            for nodeDir in dirs:
-                nodeInArchive = node.photo[nodeDir].inArchive and nodeInArchive
-            node.photo[root].inArchive = nodeInArchive
-    return(node.photo[root].inArchive) 
-    for dirpath in photos.photo[top].dirpaths:
-        cumulative_size += populate_tree_sizes(photos, dirpath)
-    for filepath in photos.photo[top].filepaths:
-        cumulative_size += photos.photo[filepath].size
-    photos.photo[top].size = cumulative_size
-    return cumulative_size      
+#def is_node_in_archive(archive, node, archive_path = None, node_path = None):  #TODO finish this function...just started and it's a mess.
+#    '''Determine if node is in archive.
+#    if archive and node are different:
+#        return True if node_path of node is contained within archive_path of archive
+#    else:
+#        return True if node_path of 
+#    '''
+#    
+#    if archive_path == None:
+#        archive_path = archive.path
+#    if node_path == None:
+#        node_path = node.path
+#    allFilesInArchive = True  #Seed value; logic will falsify if any files missing     
+#    
+#    for dirpath in node.photo[node_path].dirpaths:
+#       allFilesInArchive = allFilesInArchive and is_node_in_archive(archive, node, archive_path, node_path) 
+#    for filepath in photos.photo[top].filepaths:
+#        allFilesInArchive = allFilesInArchive    
+#        
+#    for root, dirs, files in os.walk(node.path, topdown=False):
+#        for nodeFile in files:
+#            candidateFile = os.path.join(root,nodeFile)
+#            node.photo[candidateFile].candidates = []
+#            node.photo[candidateFile].inArchive = False #Assume it is not in archive unless proven otherwise
+#            if node.photo[candidateFile].signature in archiveTable:
+#                for archiveFile in archiveTable[node.photo[candidateFile].signature]:
+#                    if archiveFile != candidateFile:  #Don't compare to oneself in case candidate path is in archive path  
+#                        if archive.photo[archiveFile].userTags != node.photo[candidateFile].userTags:
+#                            candidateThumbAndTagsSame = False
+#                        else:
+#                            candidateThumbAndTagsSame = True
+#                            if archive.get_file_signature(archiveFile) == node.get_file_signature(candidateFile):
+#                                node.photo[candidateFile].inArchive = True
+#                        node.photo[candidateFile].candidates.append([archiveFile, candidateThumbAndTagsSame, node.photo[candidateFile].inArchive])
+#            allFilesInArchive = allFilesInArchive and node.photo[candidateFile].inArchive
+#    
+#        if not allFilesInArchive:
+#            nodeInArchive = False
+#        else:
+#            nodeInArchive = True
+#            for nodeDir in dirs:
+#                nodeInArchive = node.photo[nodeDir].inArchive and nodeInArchive
+#            node.photo[root].inArchive = nodeInArchive
+#    return(node.photo[root].inArchive) 
+#    for dirpath in photos.photo[top].dirpaths:
+#        cumulative_size += populate_tree_sizes(photos, dirpath)
+#    for filepath in photos.photo[top].filepaths:
+#        cumulative_size += photos.photo[filepath].size
+#    photos.photo[top].size = cumulative_size
+#    return cumulative_size      
+  
+
+
 #def OLDisNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!  
 #    if archive.path == node.path and archive.host == node.host:  #Made this host sensitive; make sure still works for internal compares
 #        print "Error:  Node and Archive must have different root paths"
@@ -188,9 +188,12 @@ def getTimestampFromTags(tags):
 
 def thumbnailMD5sum(tags):
     if len(tags.previews) > 0:
-        return stringMD5sum(tags.previews[0].data)
+        temp = MD5sums.stringMD5sum(tags.previews[0].data)
     else:
-        return stringMD5sum("0")
+        temp = MD5sums.stringMD5sum("0")
+    if temp == 'cfcd208495d565ef66e7dff9f98764da': #TODO this is a debug; take it out.
+        pass
+    return(temp)
     
 def getUserTagsFromTags(tags):
     if 'Xmp.dc.subject' in tags.xmp_keys:
@@ -213,8 +216,8 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     '''
     logger = logging.getLogger()
     if node_path is not None and pickle_path is None:
-        logger.info("Creating photoUnitData instance for {0}".format(node_path))
-        node = photoData(node_path)
+        logger.info("Creating photo_collection instance for {0}".format(node_path))
+        node = create_collection(node_path)
     elif node_path is None and pickle_path is not None:
         logger.info("Unpacking pickle at {0}".format(pickle_path))
         pickle = photo_pickler(pickle_path)
@@ -224,14 +227,14 @@ def get_photo_data(node_path, pickle_path, node_update = True):
         if pickle.pickleExists:
             logger.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
             node = pickle.loadPickle()
-            if node_update:
-                logger.info("Refreshing photo photo in pickle  **stubbed off**")
-#                node.refresh()          
+#            if node_update:
+#                logger.info("Refreshing photo photo in pickle  **stubbed off**")
+##                node.refresh()          
         else:
             logger.info("Scanning node {0}".format(node_path))
-            node = photoData(node_path)
-            node.pickle = pickle
-            node.dump_pickle()
+            node = create_collection(node_path)
+            pickle = photo_pickler(pickle_path)
+            pickle.dumpPickle(node)
     else:
         logger.critical("function called with arguments:\"{0}\" and \"{1}\"".format(node_path, pickle_path))
         sys.exit(1)
@@ -314,7 +317,7 @@ def populate_tree_signatures(photos, top = ''):  #TODO: I'd like to log from thi
         cumulative_signature += populate_tree_signatures(photos, dirpath)
     for filepath in photos.photo[top].filepaths:
         cumulative_signature += photos.photo[filepath].signature
-    cumulative_signature = stringMD5sum(cumulative_signature)
+    cumulative_signature = MD5sums.stringMD5sum(cumulative_signature)
     photos.photo[top].signature = cumulative_signature
     return cumulative_signature     
     
