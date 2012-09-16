@@ -4,11 +4,12 @@ archivePickle = /home/scott/PythonPhotos/pickle.txt
 logfile = /home/scott/PythonPhotos/log.txt
 
 [4DAA1001312]
-archive = C:\Users\scott_jackson\Pictures
+#archive = C:\Users\scott_jackson\Pictures
+archive = C:\Users\scott_jackson\Desktop\phototest
 #archive = C:\Users\scott_jackson\Pictures\Process\
 #archive = D:\2011
-archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
-#archivePickle = C:\Users\scott_jackson\Desktop\BarneyPickle.txt
+#archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
+archivePickle = C:\Users\scott_jackson\Desktop\BarneyPhototestPickle.txt
 logfile = C:\Users\scott_jackson\Desktop\log.txt
 candidate = C:\Users\scott_jackson\Pictures\Uploads
 candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt

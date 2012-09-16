@@ -6,8 +6,10 @@ Created on Dec 25, 2011
 import sys
 import os.path
 import logging
-from cPickle import Pickler, Unpickler
-
+import pprint
+import photo_data
+from pickle import Pickler, Unpickler
+#from pickle import Pickler, Unpickler
 class photo_pickler:
     def __init__(self, picklePath):
         self.pickleExists = False
@@ -44,6 +46,7 @@ class photo_pickler:
         logger.info("Unpacking pickle at {0}".format(self.picklePath))
         pickle_fp = self.getPickleFile('rb')
         unpickler = Unpickler(pickle_fp)
+        pprint.pprint(sys.modules)
         package = unpickler.load()
         pickle_fp.close()
         logger.info("Pickle at {0} unpacked.".format(self.picklePath))
@@ -53,7 +56,8 @@ class photo_pickler:
         logger = logging.getLogger()
         logger.info("Pickling latest results to {0}.".format(self.picklePath))
         pickle_fp = self.getPickleFile('wb')
-        pickler = Pickler(pickle_fp, protocol=2)
+#        pickler = Pickler(pickle_fp, protocol=2)
+        pickler = Pickler(pickle_fp)
         pickler.dump(archive)
         pickle_fp.close()
         logger.info("Pickling complete to {0}".format(self.picklePath))

@@ -164,7 +164,7 @@ def extract_populate_tags(photos, filelist = []):
     for file_count, photo_file in enumerate(filelist, start = 1):
         if not file_count % PROGRESS_COUNT:
             elapsed_time = time.time() - start_time
-            logger.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, {4:.2f} remaining seconds".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, elapsed_time / file_count * float(total_files - file_count)))
+            logger.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(elapsed_time / file_count * float(total_files - file_count)))))
         if not photos[photo_file].isdir and not photos[photo_file].gotTags:
             
             if str.lower(os.path.splitext(photo_file)[1]) in PHOTO_FILES:

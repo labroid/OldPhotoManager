@@ -10,7 +10,7 @@ import logging
 import datetime
 from copy import deepcopy
 from pickle_manager import photo_pickler
-from photo_data import create_collection
+import photo_data
 import MD5sums
       
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
@@ -217,7 +217,7 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     logger = logging.getLogger()
     if node_path is not None and pickle_path is None:
         logger.info("Creating photo_collection instance for {0}".format(node_path))
-        node = create_collection(node_path)
+        node = photo_data.create_collection(node_path)
     elif node_path is None and pickle_path is not None:
         logger.info("Unpacking pickle at {0}".format(pickle_path))
         pickle = photo_pickler(pickle_path)
@@ -232,7 +232,7 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 ##                node.refresh()          
         else:
             logger.info("Scanning node {0}".format(node_path))
-            node = create_collection(node_path)
+            node = photo_data.create_collection(node_path)
             pickle = photo_pickler(pickle_path)
             pickle.dumpPickle(node)
     else:
