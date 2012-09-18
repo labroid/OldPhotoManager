@@ -7,9 +7,9 @@ logfile = /home/scott/PythonPhotos/log.txt
 #archive = C:\Users\scott_jackson\Pictures
 archive = C:\Users\scott_jackson\Desktop\phototest
 #archive = C:\Users\scott_jackson\Pictures\Process\
-#archive = D:\2011
+#archive = D:\2000
 #archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
-archivePickle = C:\Users\scott_jackson\Desktop\BarneyPhototestPickle.txt
+archivePickle = C:\Users\scott_jackson\Desktop\pickle
 logfile = C:\Users\scott_jackson\Desktop\log.txt
 candidate = C:\Users\scott_jackson\Pictures\Uploads
 candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt
@@ -22,5 +22,5 @@ candidatepickle = None
 
 [barney]
 archive = /home/shared/Photos/
-archivePickle = /home/scott/Desktop/src/pickle.txt
+archivePickle = /home/scott/Desktop/src/pickle
 logfile = /home/scott/Desktop/src/log.txt

@@ -79,9 +79,9 @@ def populate_tree(photos, top = None):
         print "Error", walkErr.errno, walkErr.strerror
         raise
     
-    logger.info("Populating tree for {0}".format(top))
     if top is None:
         top = photos.path
+    logger.info("Populating tree for {0}".format(top))
     if os.path.isfile(top):  #Handle the case of a file as os.walk does not handle files
 #        photos.photo[top] = photo_data()
         photos[top] = photo_data()
@@ -89,6 +89,7 @@ def populate_tree(photos, top = None):
         for dirpath, dirnames, filenames in os.walk(top, onerror = walkError):
             dirpaths = [os.path.join(dirpath, dirname) for dirname in dirnames]
             filepaths = [os.path.join(dirpath, filename) for filename in filenames]
+            print dirpaths, filepaths
             photos[dirpath] = photo_data()
             photos[dirpath].isdir = True
             photos[dirpath].dirpaths = dirpaths

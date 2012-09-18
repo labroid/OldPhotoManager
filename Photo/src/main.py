@@ -11,15 +11,13 @@ import logging
 from collections import defaultdict
 from photo_utils import environment
 import photo_functions
-import pickle_manager
-import photo_data
 
 def main():
     env = environment('Configuration')
     logger = logging.getLogger()
 #Get the archive database
-    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
-#    archive = photo_functions.get_photo_data(env.get('archive'), env.get('archivepickle'))
+#    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
+    archive = photo_functions.get_photo_data(env.get('archive'), env.get('archivepickle'))
 #    pickle_manager.dump_pickle(archive)  #TODO make sure pickle dumps happen at the right places
     print "For {0}".format(archive.path)
     photo_functions.print_statistics(archive)

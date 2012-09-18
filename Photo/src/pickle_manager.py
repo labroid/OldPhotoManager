@@ -7,9 +7,8 @@ import sys
 import os.path
 import logging
 import pprint
-import photo_data
-from pickle import Pickler, Unpickler
-#from pickle import Pickler, Unpickler
+from cPickle import Pickler, Unpickler
+
 class photo_pickler:
     def __init__(self, picklePath):
         self.pickleExists = False
@@ -56,8 +55,7 @@ class photo_pickler:
         logger = logging.getLogger()
         logger.info("Pickling latest results to {0}.".format(self.picklePath))
         pickle_fp = self.getPickleFile('wb')
-#        pickler = Pickler(pickle_fp, protocol=2)
-        pickler = Pickler(pickle_fp)
+        pickler = Pickler(pickle_fp, protocol=2)
         pickler.dump(archive)
         pickle_fp.close()
         logger.info("Pickling complete to {0}".format(self.picklePath))
