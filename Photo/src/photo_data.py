@@ -3,12 +3,6 @@ Created on Oct 21, 2011
 
 @author: scott_jackson
 
-TODO:  Finish converting this to make the archive pickle only contain photo_collection
-The pickle that holds photo data should only contain the photo data and not processing 
-methods except to the extent necessary to create the data object.  If methods are needed,
-then they should only call the standard libraries, such that no dependencies exist
-for methods outside of this object.
-
 '''
 import sys
 import os
@@ -31,12 +25,12 @@ class photo_data:
         self.fileMD5 = ''
         self.userTags = ''
         self.inArchive = False
-        self.candidates = []
+        self.signature_match = []
+        self.signature_and_tags_match = []
         self.dirpaths = []
         self.filepaths = []      
         
-class photo_collection:  #This class should be data only
-    
+class photo_collection:
     def __init__(self):
         self.host = ''
         self.path = ''
@@ -64,9 +58,9 @@ def create_collection(path):
     elapsed_time = time.time() - start_time
     logger.info("Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(photos.photo), elapsed_time, elapsed_time/len(photos.photo)))
     logger.info("Computing cumulative sizes for file tree")  #Logged here since function is recursive
-#    photo_functions.populate_tree_sizes(self)
-#    logger.info("Computing cumulative signature for file tree")  #Logged here since function is recursive
-#    photo_functions.populate_tree_signatures(self)
+    photo_functions.populate_tree_sizes(photos)
+    logger.info("Computing cumulative signature for file tree")  #Logged here since function is recursive
+    photo_functions.populate_tree_signatures(photos)
     return(photos)
     
 
@@ -89,7 +83,6 @@ def populate_tree(photos, top = None):
         for dirpath, dirnames, filenames in os.walk(top, onerror = walkError):
             dirpaths = [os.path.join(dirpath, dirname) for dirname in dirnames]
             filepaths = [os.path.join(dirpath, filename) for filename in filenames]
-            print dirpaths, filepaths
             photos[dirpath] = photo_data()
             photos[dirpath].isdir = True
             photos[dirpath].dirpaths = dirpaths
@@ -121,16 +114,21 @@ def populate_file_stats(photos, path = None):
 
 def get_file_signature(photos, tags, filepath):
     LENGTH_LIMIT = 1048576  #Max length for a non-PHOTO_FILES, otherwise a truncated MD5 is computed
+    TEXT_FILES = ['ini', 'txt']  #file types to be compared ignoring CR/LF for OS portability.  Use lower case (extensions will be lowered before comparison
     if tags is not None and len(tags.previews) > 0:
-            signature = photo_functions.thumbnailMD5sum(tags)
+        signature = photo_functions.thumbnailMD5sum(tags)
     else:
-        if photos[filepath].size < LENGTH_LIMIT:
-            signature = MD5sums.fileMD5sum(filepath)
+        if str.lower(os.path.splitext(filepath)[1]) in TEXT_FILES:
+            MD5sums.text_file_MD5_signature(filepath)
         else:
-            signature = MD5sums.truncatedMD5sum(filepath, LENGTH_LIMIT)
+            if photos[filepath].size < LENGTH_LIMIT:
+                signature = MD5sums.fileMD5sum(filepath)
+            else:
+                signature = MD5sums.truncatedMD5sum(filepath, LENGTH_LIMIT)
     return(signature)
     
 
+    
 #    def refresh(self):
 #        ''' TODO Rescan photo photo and update pickle but only if hostname is same and root node exists
 #            Update node database
@@ -165,7 +163,9 @@ def extract_populate_tags(photos, filelist = []):
     for file_count, photo_file in enumerate(filelist, start = 1):
         if not file_count % PROGRESS_COUNT:
             elapsed_time = time.time() - start_time
-            logger.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(elapsed_time / file_count * float(total_files - file_count)))))
+            total_time_projected = float(elapsed_time) / float(file_count) * total_files
+            time_remaining = float(elapsed_time) / float(file_count) * float(total_files - file_count)
+            logger.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(seconds = time_remaining)),str(datetime.timedelta(seconds = total_time_projected))))
         if not photos[photo_file].isdir and not photos[photo_file].gotTags:
             
             if str.lower(os.path.splitext(photo_file)[1]) in PHOTO_FILES:

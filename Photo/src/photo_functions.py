@@ -15,9 +15,9 @@ import MD5sums
       
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
     ''' 
-	Replaces the .candidates list property for each element of the node_path as follows:
+	Replaces the .signature_match list property for each element of the node_path as follows:
 	if archive and node are the different:
-		.candidate property is updated for all files
+		.signatures_match and .signature_and_tags_match property is updated for all files
 	else:
 		if archive_path and node_path are same:
 			.candidate property is updated for all and 'self' is excluded from list
@@ -43,141 +43,65 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
     logger.info("Finding duplicates...")
     file_count = 0
     if archive != node:
-        for nodefile in node.photo.keys():
-            if node.photo[nodefile].signature in archiveTable:
-                node.photo[nodefile].candidates = deepcopy(archiveTable[node.photo[nodefile].signature])
-            else:
-                node.photo[nodefile].candidates = []
-    else:
+        for nodepath in node.photo.keys():
+            signature = node[nodepath].signature
+            node[nodepath].signature_match = []
+            node[nodepath].signature_and_tags_match = []
+            node[nodepath].inArchive = False
+            if signature in archiveTable:
+                for candidate in archiveTable[signature]:
+                    if node[nodepath].userTags == archive[candidate].userTags:
+                        node[nodepath].signature_and_tags_match.append(candidate)
+                        if not node[nodepath].isdir:
+                            node[nodepath].inArchive = True
+                    else:
+                        node[nodepath].signature_match.append(candidate)
+    else:  #TODO:  This needs to be rewritten to match archive != node approach
         if archive_path == node_path:
-            for file_count, nodefile in enumerate(node.photo.keys(), start = 1):
+            for file_count, nodepath in enumerate(node.photo.keys(), start = 1):
                 if file_count % 1000 == 0:
                     print "File count:", file_count
-                if node[nodefile].signature in archiveTable:
-                    node[nodefile].candidates = deepcopy(archiveTable[node[nodefile].signature])
-                else:
-                    node.photo[nodefile].candidates = []
-            for nodefile in node.photo.keys():
-                if nodefile in node.photo[nodefile].candidates:
-                    node.photo[nodefile].candidates.remove(nodefile)
-        else:  #Remove all candidates that share the node_path root
+                signature = node[nodepath].signature
+                node[nodepath].signature_match = []
+                node[nodepath].signature_and_tags_match = []
+                node[nodepath].inArchive = False
+                if signature in archiveTable:
+                    for candidate in archiveTable[signature]:
+                        if candidate != nodepath:  #Do not record yourself as a match
+                            if node[nodepath].userTags == archive[candidate].userTags:
+                                node[nodepath].signature_and_tags_match.append(candidate)
+                            else:
+                                node[nodepath].signature_match.append(candidate) 
+        else:  #Remove all signature_match that share the node_path root
             logger.error("***STUBBED OFF*** TODO Finish this function before doing subdirectory compares between collections")
             print "***STUBBED OFF*** TODO subdirectory searches not yet supported."
             sys.exit(1)
     logger.info("Done populating candidate properties")
                 
-#def is_node_in_archive(archive, node, archive_path = None, node_path = None):  #TODO finish this function...just started and it's a mess.
-#    '''Determine if node is in archive.
-#    if archive and node are different:
-#        return True if node_path of node is contained within archive_path of archive
-#    else:
-#        return True if node_path of 
-#    '''
-#    
-#    if archive_path == None:
-#        archive_path = archive.path
-#    if node_path == None:
-#        node_path = node.path
-#    allFilesInArchive = True  #Seed value; logic will falsify if any files missing     
-#    
-#    for dirpath in node.photo[node_path].dirpaths:
-#       allFilesInArchive = allFilesInArchive and is_node_in_archive(archive, node, archive_path, node_path) 
-#    for filepath in photos.photo[top].filepaths:
-#        allFilesInArchive = allFilesInArchive    
-#        
-#    for root, dirs, files in os.walk(node.path, topdown=False):
-#        for nodeFile in files:
-#            candidateFile = os.path.join(root,nodeFile)
-#            node.photo[candidateFile].candidates = []
-#            node.photo[candidateFile].inArchive = False #Assume it is not in archive unless proven otherwise
-#            if node.photo[candidateFile].signature in archiveTable:
-#                for archiveFile in archiveTable[node.photo[candidateFile].signature]:
-#                    if archiveFile != candidateFile:  #Don't compare to oneself in case candidate path is in archive path  
-#                        if archive.photo[archiveFile].userTags != node.photo[candidateFile].userTags:
-#                            candidateThumbAndTagsSame = False
-#                        else:
-#                            candidateThumbAndTagsSame = True
-#                            if archive.get_file_signature(archiveFile) == node.get_file_signature(candidateFile):
-#                                node.photo[candidateFile].inArchive = True
-#                        node.photo[candidateFile].candidates.append([archiveFile, candidateThumbAndTagsSame, node.photo[candidateFile].inArchive])
-#            allFilesInArchive = allFilesInArchive and node.photo[candidateFile].inArchive
-#    
-#        if not allFilesInArchive:
-#            nodeInArchive = False
-#        else:
-#            nodeInArchive = True
-#            for nodeDir in dirs:
-#                nodeInArchive = node.photo[nodeDir].inArchive and nodeInArchive
-#            node.photo[root].inArchive = nodeInArchive
-#    return(node.photo[root].inArchive) 
-#    for dirpath in photos.photo[top].dirpaths:
-#        cumulative_size += populate_tree_sizes(photos, dirpath)
-#    for filepath in photos.photo[top].filepaths:
-#        cumulative_size += photos.photo[filepath].size
-#    photos.photo[top].size = cumulative_size
-#    return cumulative_size      
-  
+                
+def is_node_in_archive(archive, node, archive_path = None, node_path = None):
+    '''Determine if node is in archive.
+    '''
+    
+    if archive_path == None:
+        archive_path = archive.path
+    if node_path == None:
+        node_path = node.path
+        
+    allFilesInArchive = True  #Seed value; logic will falsify this value if any files are missing     
+    
+    if '20100108' in node_path:
+        pass
+    if not node[node_path].isdir:
+        return(len(node[node_path].signature_and_tags_match) > 0)
+    
+    for dirpath in node[node_path].dirpaths:
+        allFilesInArchive = is_node_in_archive(archive, node, archive_path, dirpath) and allFilesInArchive 
+    for filepath in node[node_path].filepaths:
+        allFilesInArchive = allFilesInArchive and node[filepath].inArchive
+    node[node_path].inArchive = allFilesInArchive
+    return(allFilesInArchive)
 
-
-#def OLDisNodeInArchive(archive, node):  #Check "in archive" logic and make sure it is right!!  
-#    if archive.path == node.path and archive.host == node.host:  #Made this host sensitive; make sure still works for internal compares
-#        print "Error:  Node and Archive must have different root paths"
-#        return(False) #By definition the node is in the archive since they are the same.  However return False so no one assumes it is a copy and deletes the Archive    
-#
-##Create a dictionary using thumbMD5s as the keys for fast lookup    
-#    archiveTable = {}
-#    for archiveFile in archive.photo.keys():
-#        if archive.photo[archiveFile].signature in archiveTable: 
-#            archiveTable[archive.photo[archiveFile].signature].append(archiveFile)
-#        else:
-#            archiveTable[archive.photo[archiveFile].signature] = [archiveFile]
-#            
-#    allFilesInArchive = True  #Seed value; logic will falsify if any files missing     
-#    for root, dirs, files in os.walk(node.path, topdown=False):
-#        for nodeFile in files:
-#            candidateFile = os.path.join(root,nodeFile)
-#            node.photo[candidateFile].candidates = []
-#            node.photo[candidateFile].inArchive = False #Assume it is not in archive unless proven otherwise
-#            if node.photo[candidateFile].signature in archiveTable:
-#                for archiveFile in archiveTable[node.photo[candidateFile].signature]:
-#                    if archiveFile != candidateFile:  #Don't compare to oneself in case candidate path is in archive path  
-#                        if archive.photo[archiveFile].userTags != node.photo[candidateFile].userTags:
-#                            candidateThumbAndTagsSame = False
-#                        else:
-#                            candidateThumbAndTagsSame = True
-#                            if archive.get_file_signature(archiveFile) == node.get_file_signature(candidateFile):
-#                                node.photo[candidateFile].inArchive = True
-#                        node.photo[candidateFile].candidates.append([archiveFile, candidateThumbAndTagsSame, node.photo[candidateFile].inArchive])
-#            allFilesInArchive = allFilesInArchive and node.photo[candidateFile].inArchive
-#    
-#        if not allFilesInArchive:
-#            nodeInArchive = False
-#        else:
-#            nodeInArchive = True
-#            for nodeDir in dirs:
-#                nodeInArchive = node.photo[nodeDir].inArchive and nodeInArchive
-#            node.photo[root].inArchive = nodeInArchive
-#    return(node.photo[root].inArchive) 
-#            
-#def findSameTimestamp(collection, targetTime):
-#    candidateList = []
-##    filterstring = os.path.sep + targetTime.strftime('%Y') + os.path.sep + targetTime.strftime('%Y%m%d')
-##    filterstring = os.path.sep + targetTime.strftime('%Y%m%d')
-##    print "filterstring=",filterstring
-#    for filename in collection.photo.keys():
-#        print filename, "-->",collection.photo[filename].tags['EXIF DateTimeOriginal'],"<--",collection.photo[filename].timestamp, targetTime
-#        if collection.photo[filename].timestamp == targetTime:
-#            candidateList.append(filename)
-#
-##        if filterstring in filename:
-##            candidateList.append(filename)
-#    return(candidateList)
-            
-
-#    candidateFiles = filter(lambda x:filterstring in x, collection.photo.keys())
-#    print "candidateFiles=",candidateFiles
-#    for file in candidateFiles:
-#        print "Candidate:",file
     
 def getTimestampFromTags(tags):
     if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
@@ -191,8 +115,6 @@ def thumbnailMD5sum(tags):
         temp = MD5sums.stringMD5sum(tags.previews[0].data)
     else:
         temp = MD5sums.stringMD5sum("0")
-    if temp == 'cfcd208495d565ef66e7dff9f98764da': #TODO this is a debug; take it out.
-        pass
     return(temp)
     
 def getUserTagsFromTags(tags):
@@ -294,14 +216,16 @@ def populate_tree_sizes(photos, top = ''):  #TODO: I'd like to log from this fun
     '''
     if top == '':
         top = photos.path
+        
     if os.path.isfile(top):
-        return photos.photo[top].size
+        return photos[top].size
+    
     cumulative_size = 0
-    for dirpath in photos.photo[top].dirpaths:
+    for dirpath in photos[top].dirpaths:
         cumulative_size += populate_tree_sizes(photos, dirpath)
-    for filepath in photos.photo[top].filepaths:
-        cumulative_size += photos.photo[filepath].size
-    photos.photo[top].size = cumulative_size
+    for filepath in photos[top].filepaths:
+        cumulative_size += photos[filepath].size
+    photos[top].size = cumulative_size
     return cumulative_size      
 
 def populate_tree_signatures(photos, top = ''):  #TODO: I'd like to log from this function, but it is recursive and I don't know when I'm at the root call
@@ -310,29 +234,29 @@ def populate_tree_signatures(photos, top = ''):  #TODO: I'd like to log from thi
     '''
     if top == '':
         top = photos.path
+        
     if os.path.isfile(top):
-        return photos.photo[top].signature
-    cumulative_signature = ''
-    for dirpath in photos.photo[top].dirpaths:
-        cumulative_signature += populate_tree_signatures(photos, dirpath)
-    for filepath in photos.photo[top].filepaths:
-        cumulative_signature += photos.photo[filepath].signature
-    cumulative_signature = MD5sums.stringMD5sum(cumulative_signature)
-    photos.photo[top].signature = cumulative_signature
-    return cumulative_signature     
+        return photos[top].signature
     
-def print_indented_string(photos, path, indent_level):
-    INDENT_WIDTH = 3 #Number of spaces for each indent_level
-    print "{0}{1} {2} {3}".format(" " * INDENT_WIDTH * indent_level, os.path.basename(path), photos.photo[path].signature, photos.photo[path].size)
-
-def print_tree(photos, top = '', indent_level = 0):
+    cumulative_signature = ''
+    for dirpath in photos[top].dirpaths:
+        cumulative_signature += populate_tree_signatures(photos, dirpath)
+    for filepath in photos[top].filepaths:
+        cumulative_signature += photos[filepath].signature
+    cumulative_MD5 = MD5sums.stringMD5sum(cumulative_signature)
+    photos[top].signature = cumulative_MD5
+    return cumulative_MD5
+    
+def print_tree(photos, top = None, indent_level = 0, show_empty_files = False):
     '''Print Photo collection using a tree structure'''
-    if top == '':
+    INDENT_WIDTH = 3 #Number of spaces for each indent level
+    if top is None:
         top = photos.path
-    print_indented_string(photos, top, indent_level)
+    print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, os.path.basename(top), photos[top].inArchive, photos[top].size, photos[top].signature_and_tags_match)
     indent_level += 1
     for filepath in photos.photo[top].filepaths:
-        print_indented_string(photos, filepath, indent_level)
+        if photos[filepath].size != 0:
+            print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, os.path.basename(filepath), photos[filepath].inArchive, photos[filepath].size, photos[filepath].signature_and_tags_match)
     for dirpath in photos.photo[top].dirpaths:
         print_tree(photos, dirpath, indent_level)
         

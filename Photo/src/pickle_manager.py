@@ -6,7 +6,6 @@ Created on Dec 25, 2011
 import sys
 import os.path
 import logging
-import pprint
 from cPickle import Pickler, Unpickler
 
 class photo_pickler:
@@ -45,7 +44,6 @@ class photo_pickler:
         logger.info("Unpacking pickle at {0}".format(self.picklePath))
         pickle_fp = self.getPickleFile('rb')
         unpickler = Unpickler(pickle_fp)
-        pprint.pprint(sys.modules)
         package = unpickler.load()
         pickle_fp.close()
         logger.info("Pickle at {0} unpacked.".format(self.picklePath))

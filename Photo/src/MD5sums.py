@@ -49,4 +49,17 @@ def truncatedMD5sum(filepath, length = 1048578):
     fp.close()
     truncated_sum = stringMD5sum(data)
     return truncated_sum 
+
+def text_file_MD5_signature(filepath):
+    logger = logging.getLogger()
+    try:
+        fp = open(filepath, 'rb')
+    except:
+        logger.warning("Couldn't open file {0}.  Setting to default".format(filepath))
+        return("FFFFFFFFFFFFFFFF")
+    m = hashlib.md5()
+    for line in fp:
+        m.update(line.rstrip())
+    fp.close()
+    return m.hexdigest() 
         
