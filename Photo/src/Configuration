@@ -11,7 +11,7 @@ logfile = /home/scott/PythonPhotos/log.txt
 archivePickle = C:\Users\scott_jackson\Desktop\pickle
 logfile = C:\Users\scott_jackson\Desktop\log.txt
 candidate = C:\Users\scott_jackson\Pictures\Uploads
-candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle
+candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt
 
 [Homer]
 archive = c:\Users\scott\Pictures

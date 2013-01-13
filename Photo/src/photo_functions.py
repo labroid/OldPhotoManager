@@ -8,6 +8,7 @@ import os
 import sys
 import logging
 import datetime
+from operator import itemgetter
 from copy import deepcopy
 from pickle_manager import photo_pickler
 import photo_data
@@ -41,22 +42,26 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
             archiveTable[archive[archiveFile].signature] = [archiveFile]
             
     logger.info("Finding duplicates...")
+    assume_match_list = ['.picasa.ini', 'Picasa.ini', 'picasa.ini']  #TODO Make this configurable
     file_count = 0
     if archive != node:
         for nodepath in node.photo.keys():
-            signature = node[nodepath].signature
-            node[nodepath].signature_match = []
-            node[nodepath].signature_and_tags_match = []
-            node[nodepath].inArchive = False
-            if signature in archiveTable:
-                for candidate in archiveTable[signature]:
-                    if node[nodepath].userTags == archive[candidate].userTags:
-                        node[nodepath].signature_and_tags_match.append(candidate)
-                        if not node[nodepath].isdir:
-                            node[nodepath].inArchive = True
-                    else:
-                        node[nodepath].signature_match.append(candidate)
-    else:  #TODO:  This needs to be rewritten to match archive != node approach
+            if os.path.normpath(os.path.basename(nodepath)) in assume_match_list:
+                node[nodepath].inArchive = True
+            else:
+                signature = node[nodepath].signature
+                node[nodepath].signature_match = []
+                node[nodepath].signature_and_tags_match = []
+                node[nodepath].inArchive = False
+                if signature in archiveTable:
+                    for candidate in archiveTable[signature]:
+                        if node[nodepath].userTags == archive[candidate].userTags:
+                            node[nodepath].signature_and_tags_match.append(candidate)
+                            if not node[nodepath].isdir:
+                                node[nodepath].inArchive = True
+                        else:
+                            node[nodepath].signature_match.append(candidate)
+    else:  #TODO:  This needs to be rewritten to match archive != node approach once it is completed
         if archive_path == node_path:
             for file_count, nodepath in enumerate(node.photo.keys(), start = 1):
                 if file_count % 1000 == 0:
@@ -88,10 +93,11 @@ def is_node_in_archive(archive, node, archive_path = None, node_path = None):
     if node_path == None:
         node_path = node.path
         
+    if 'Ornaments' in node_path:
+        pass        
+    
     allFilesInArchive = True  #Seed value; logic will falsify this value if any files are missing     
     
-    if '20100108' in node_path:
-        pass
     if not node[node_path].isdir:
         return(len(node[node_path].signature_and_tags_match) > 0)
     
@@ -247,16 +253,45 @@ def populate_tree_signatures(photos, top = ''):  #TODO: I'd like to log from thi
     photos[top].signature = cumulative_MD5
     return cumulative_MD5
     
-def print_tree(photos, top = None, indent_level = 0, show_empty_files = False):
+def print_tree(photos, top = None, indent_level = 0):
     '''Print Photo collection using a tree structure'''
+    '''I Broke this getting fancy printing automatic delete!  Needs to be completed or reverted'''
     INDENT_WIDTH = 3 #Number of spaces for each indent level
     if top is None:
         top = photos.path
-    print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, os.path.basename(top), photos[top].inArchive, photos[top].size, photos[top].signature_and_tags_match)
+        
+    print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, top, photos[top].inArchive, photos[top].size, photos[top].signature_and_tags_match)
+        
     indent_level += 1
     for filepath in photos.photo[top].filepaths:
-        if photos[filepath].size != 0:
-            print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, os.path.basename(filepath), photos[filepath].inArchive, photos[filepath].size, photos[filepath].signature_and_tags_match)
+        print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, filepath, photos[filepath].inArchive, photos[filepath].size, photos[filepath].signature_and_tags_match)
     for dirpath in photos.photo[top].dirpaths:
         print_tree(photos, dirpath, indent_level)
+    
+def prune_candidates(node): #This function should prune duplicates that are children of the same node
+    pass
+    
+def find_duplicate_nodes(photos, top = None): #This is broken.  Resulting list is a list of tuples with some lists thrown in, including empty nested lists.  Doh!
+    if top is None:
+        top = photos.path
+       
+    duplicates = []
+    for dirpath in photos[top].dirpaths:
+        if photos[dirpath].inArchive:
+            duplicates.append((dirpath, photos[dirpath].size))
+        else:
+            duplicates.append(find_duplicate_nodes(photos, dirpath))
+    for filepath in photos[top].filepaths:
+        if photos[filepath].inArchive:
+            duplicates.append((filepath, photos[filepath].size))
+    return (duplicates)       
+            
+def print_largest_duplicates(photos):            
+#Find largest duplicate nodes
+    #Sort by size
+    duplicates = find_duplicate_nodes(photos)
+    big_ones = sorted(duplicates, key = lambda dupe: dupe[1], reverse = True)
+    print "Big ones:"
+    for x in big_ones:
+        print x, photos[x[0]].inArchive, photos[x[0]].signature_and_tags_match
         
