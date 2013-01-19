@@ -13,6 +13,8 @@ from copy import deepcopy
 from pickle_manager import photo_pickler
 import photo_data
 import MD5sums
+
+logger = logging.getLogger()
       
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
     ''' 
@@ -155,9 +157,9 @@ def get_photo_data(node_path, pickle_path, node_update = True):
         if pickle.pickleExists:
             logger.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
             node = pickle.loadPickle()
-#            if node_update:
-#                logger.info("Refreshing photo photo in pickle  **stubbed off**")
-##                node.refresh()          
+            if node_update:
+                photo_data.update_collection(node)
+                pickle.dumpPickle(node)
         else:
             logger.info("Scanning node {0}".format(node_path))
             node = photo_data.create_collection(node_path)
@@ -217,41 +219,48 @@ def print_zero_length_files(photos):
             print names
         print ""
     
-def populate_tree_sizes(photos, top = ''):  #TODO: I'd like to log from this function, but it is recursive and I don't know when I'm at the root call
+    
+def populate_tree_sizes(photos, top = '', root_call = True):
     '''Recursively descends photo tree structure and computes/populates sizes
     '''
-    if top == '':
-        top = photos.path
+    if root_call:
+        logger.info("Computing cumulative sizes for file tree.") 
+        if top == '':
+            top = photos.path
         
     if os.path.isfile(top):
         return photos[top].size
     
     cumulative_size = 0
     for dirpath in photos[top].dirpaths:
-        cumulative_size += populate_tree_sizes(photos, dirpath)
+        cumulative_size += populate_tree_sizes(photos, dirpath, root_call = False)
     for filepath in photos[top].filepaths:
         cumulative_size += photos[filepath].size
     photos[top].size = cumulative_size
     return cumulative_size      
 
-def populate_tree_signatures(photos, top = ''):  #TODO: I'd like to log from this function, but it is recursive and I don't know when I'm at the root call
+
+def populate_tree_signatures(photos, top = '', root_call = True):
     '''Recursively descends photo photo structure and computes aggregated signatures
     Assumes all files have signatures populated; computes for signatures for directory structure
     '''
-    if top == '':
-        top = photos.path
+    if root_call:
+        logger.info("Populating cumulative tree signatures for file tree.")
+        if top == '':
+            top = photos.path
         
     if os.path.isfile(top):
         return photos[top].signature
     
     cumulative_signature = ''
     for dirpath in photos[top].dirpaths:
-        cumulative_signature += populate_tree_signatures(photos, dirpath)
+        cumulative_signature += populate_tree_signatures(photos, dirpath, root_call = False)
     for filepath in photos[top].filepaths:
         cumulative_signature += photos[filepath].signature
     cumulative_MD5 = MD5sums.stringMD5sum(cumulative_signature)
     photos[top].signature = cumulative_MD5
     return cumulative_MD5
+    
     
 def print_tree(photos, top = None, indent_level = 0):
     '''Print Photo collection using a tree structure'''

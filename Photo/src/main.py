@@ -17,10 +17,10 @@ def main():
     logger = logging.getLogger()
     
 #Get the archive database
-    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
+#    archive = photo_functions.get_photo_data(None, env.get('archivepickle'))
 #    archive = photo_functions.get_photo_data(env.get('archive'), env.get('archivepickle'))
-    print "For {0}:{1}".format(archive.host, archive.path)
-    photo_functions.print_statistics(archive)
+#    print "For {0}:{1}".format(archive.host, archive.path)
+#    photo_functions.print_statistics(archive)
 #    photo_functions.print_zero_length_files(archive)
 #    photo_functions.print_tree(archive)
 #    print "Finished!"

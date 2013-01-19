@@ -13,6 +13,7 @@ import pyexiv2
 import socket
 import photo_functions
 import MD5sums
+from TiffImagePlugin import PHOTOSHOP_CHUNK
 
 class photo_data:
     def __init__(self):
@@ -47,26 +48,31 @@ class photo_collection:
 logger = logging.getLogger()
     
 def create_collection(path):
-    start_time = time.time()
-    logger.debug("Creating photo collection from {0}".format(path))
+    logger.debug("Photo collection data structure does not exist:  creating it.")
     photos = photo_collection()
     photos.host = socket.gethostname()
     photos.path = os.path.normpath(path)
-    populate_tree(photos)
-    populate_file_stats(photos)
-    extract_populate_tags(photos)
-    elapsed_time = time.time() - start_time
-    logger.info("Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(photos.photo), elapsed_time, elapsed_time/len(photos.photo)))
-    logger.info("Computing cumulative sizes for file tree")  #Logged here since function is recursive
-    photo_functions.populate_tree_sizes(photos)
-    logger.info("Computing cumulative signature for file tree")  #Logged here since function is recursive
-    photo_functions.populate_tree_signatures(photos)
+    update_collection(photos)
     return(photos)
     
+def update_collection(photos):
+    start_time = time.time()
+    if photos.host == socket.gethostname():
+        logger.debug("Updating photo collection at {0}:{1}".format(photos.host, photos.path))
+        update_tree(photos)
+        prune_old_nodes(photos)
+        update_file_stats(photos)
+        extract_populate_tags(photos)
+        elapsed_time = time.time() - start_time
+        logger.info("Total files: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(photos.photo), elapsed_time, elapsed_time/len(photos.photo)))
+        photo_functions.populate_tree_sizes(photos)
+        photo_functions.populate_tree_signatures(photos)
+    else:
+        logger.warning('Collection not on this machine; database will not be updated')
 
-
-def populate_tree(photos, top = None):
-    '''Descend photo tree from top and add photo instances for each node and leaf of the tree
+def update_tree(photos, top = None):
+    '''Descend photo tree from top and add photo instances for each node and leaf of the tree.
+       If leaves exist, only update them if the mtime or size have changed.
     '''
         
     def walkError(walkErr):
@@ -75,41 +81,75 @@ def populate_tree(photos, top = None):
     
     if top is None:
         top = photos.path
-    logger.info("Populating tree for {0}".format(top))
+        
+    logger.info("Updating tree for {0}".format(top))
     if os.path.isfile(top):  #Handle the case of a file as os.walk does not handle files
-#        photos.photo[top] = photo_data()
         photos[top] = photo_data()
     else:
         for dirpath, dirnames, filenames in os.walk(top, onerror = walkError):
             dirpaths = [os.path.join(dirpath, dirname) for dirname in dirnames]
             filepaths = [os.path.join(dirpath, filename) for filename in filenames]
-            photos[dirpath] = photo_data()
+            if not dirpath in photos.photo.keys():
+                logger.info("New directory detected: {0}".format(dirpath))
+                photos[dirpath] = photo_data()
+            #Re-initialize properties of an existing node - would like to use __init()__ but not sure how
+            #Another possible option is to delete an existing node and re-instantiate it
+            photos[dirpath].size = 0
+            photos[dirpath].mtime = -(sys.maxint - 1) #Set default time to very old
+            photos[dirpath].timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
+            photos[dirpath].gotTags = False
+            photos[dirpath].signature = ''
+            photos[dirpath].fileMD5 = ''
+            photos[dirpath].userTags = ''
+            photos[dirpath].inArchive = True
+            photos[dirpath].signature_match = []
+            photos[dirpath].signature_and_tags_match = []
             photos[dirpath].isdir = True
             photos[dirpath].dirpaths = dirpaths
             photos[dirpath].filepaths = filepaths
             for filepath in filepaths:
-                photos[filepath] = photo_data()    
+                if filepath in photos.photo:
+                    file_stat = stat_node(filepath)
+                    if photos[filepath].size != file_stat.st_size or photos[filepath].mtime != file_stat.st_mtime:
+                        photos[filepath].gotTags = False
+                else:
+                    logger.info("New File detected: {0}".format(filepath))
+                    photos[filepath] = photo_data()    
+                photos[filepath].inArchive = True
     logger.info("Done extracting tree for {0}".format(top))
+    
+def prune_old_nodes(photos):
+    '''Prune nodes from the photo collection that are no longer present.
+       Also reset the inArchive flag to False so it can be used for future duplicate tracking
+    '''
+    logger.info("Pruning old nodes from {0}".format(photos.path))
+    for path in photos.photo.keys():
+        if not photos[path].inArchive:
+            logger.info("Pruning {0}".format(path))
+            del photos.photo[path]
+        else:
+            photos[path].inArchive = False
 
-def stat_file(filepath):
-    if os.path.isfile(filepath):
-        try:
-            file_stat = os.stat(filepath)
-        except:
-            logger.error("Can't stat file at {0}".format(filepath))
-            raise
-        size = file_stat.st_size
-        mtime = file_stat.st_mtime
-        return(size, mtime)
+def stat_node(nodepath):
+    try:
+        file_stat = os.stat(nodepath)
+    except:
+        logger.error("Can't stat file at {0}".format(nodepath))
+        sys.exit(1)
+    return(file_stat)
 
-def populate_file_stats(photos, path = None):
+def update_file_stats(photos, path = None): 
     '''Populate file size and mtime for each photo that is a file
     '''
-    logger.info('Populating file stats for {0}'.format(path))
     if path is None:
         path = photos.path
+    logger.info('Populating file stats for {0}'.format(path))
+        
     for filepath in photos.photo.keys():  
-        [photos[filepath].size, photos[filepath].mtime] = stat_file(filepath)
+        if os.path.isfile(filepath):
+            file_stat = stat_node(filepath)
+            photos[filepath].size = file_stat.st_size
+            photos[filepath].mtime = file_stat.st_mtime
     logger.info('Done populating file stats for {0}'.format(photos.path))
 
 def get_file_signature(photos, tags, filepath):
@@ -127,100 +167,6 @@ def get_file_signature(photos, tags, filepath):
                 signature = MD5sums.truncatedMD5sum(filepath, LENGTH_LIMIT)
     return(signature)
     
-##    def refresh(self):
-##        We use the InArchive flag to indicate files that are in the archive, and clear tag info to indicate that that need updating.  Checksums and 
-##        sizes are summed up across directories for all directories every time.
-##
-##        Check if in same host and node readable
-##        Clear inArchive flag for all nodes in archive
-##        Traverse filesystem
-##            If directory not in archive
-##            if (filesize or mtime changed)
-##                if is a photo file:
-##                    compute thumbnail checksum and file parameters
-##                    set validated flag
-##                else
-##                    compute file checksum and use for both thumbnail and file sums
-##                    set validated flag
-##        Check each database record
-##            if not validated, remove from database
-##        '''
-###        for element in self.photo.keys():
-###            self.photo[element].inArchive = False
-###        self.traverse(self.path, refresher)
-###        
-#def refresh_collection(photos):  #TODO Working on this one!  Still incomplete
-#    logger.info("Refreshing tree for {0}".format(photos.path))
-#    
-#    if photos.host != socket.gethostname() or not os.path.exists(photos.path):
-#        err_str = "Error:  Can only refresh archive on host machine"
-#        print err_str
-#        logger.error(err_str)
-#        sys.exit(1)  #TODO might be nice to raise an error instead...think about it.
-#    
-#    #Clear inArchive - used as flag for existing nodes    
-#    for node in photos.photo.keys():
-#        photos[node].inArchive = False
-#        
-#    update_tree(photos)
-#        
-#        
-#def update_tree(photos):
-#    def walkError(walkErr):
-#        err_str = "Error {0} {1}".format(walkErr.errno, walkErr.strerror)
-#        print err_str
-#        logger.error(err_str)
-#        sys.exit(1)  #TODO might be nice to raise an error instead...think about it.
-#    
-#    if os.path.isfile(photos.path):  #Handle the case of a file as os.walk does not handle files
-#        err_str = "Error: Stubbed function - photo album is a file"
-#        print err_str
-#        logger.error(err_str)
-#    else:
-#        for dirpath, dirnames, filenames in os.walk(photos.path, onerror = walkError):
-#            dirpaths = [os.path.join(dirpath, dirname) for dirname in dirnames]
-#            filepaths = [os.path.join(dirpath, filename) for filename in filenames]
-#            if not dirpath in photos.photo:
-#                logger.info("New: {0}".format(dirpath))
-#                photos[dirpath] = photo_data()
-#                photos[dirpath].isdir = True
-#                photos[dirpath].dirpaths = dirpaths
-#                photos[dirpath].filepaths = filepaths
-#                photos[dirpath].inArchive = True
-#                for filepath in filepaths:
-#                    logger.info("New: {0}".format(filepath))
-#                    photos[filepath] = photo_data()    #Need to extract tag data for all of these!clear gotTags
-#            else:
-#                photos[dirpath].isdir = True
-#                photos[dirpath].dirpaths = dirpaths
-#                photos[dirpath].filepaths = filepaths
-#                photos[dirpath].inArchive = True
-#                for filepath in filepaths:
-#                    [size, mtime] = stat_file(filepath)
-#                    if size != photos[filepath].size or mtime != photos[filepath].mtime:
-#                        logger.info("Changed: {0} - Old/New size: {1}/{2} - Old/New mtime: {3}/{4}".format(filepath, photos[filepath].size, size, photos[filepath].mtime, mtime))
-#                        photos[filepath].size = size
-#                        photos[filepath].mtime = mtime
-#                        photos[filepath].inArchive = True
-#        self.isdir = False
-#        self.size = 0
-#        self.mtime = -(sys.maxint - 1) #Set default time to very old
-#        self.timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
-#        self.gotTags = False
-#        self.signature = ''
-#        self.fileMD5 = ''
-#        self.userTags = ''
-#        self.inArchive = False
-#        self.signature_match = []
-#        self.signature_and_tags_match = []
-#        self.dirpaths = []
-#        self.filepaths = []  
-#                    photos[filepath] = photo_data() 
-#                
-#    logger.info("Done refreshing tree for {0}".format(photos.path))
-#     
-    
-
 def extract_populate_tags(photos, filelist = []):
     PHOTO_FILES = [".jpg", ".png"]  #Use lower case as extensions will be cast to lower case for comparison
     PROGRESS_COUNT = 500 #How often to report progress in units of files
@@ -246,9 +192,9 @@ def extract_populate_tags(photos, filelist = []):
                     photos[photo_file].timestamp = photo_functions.getTimestampFromTags(tags)  
             else:
                 tags = None   
-            photos[photo_file].signature = get_file_signature(photos, tags, photo_file)  #Get signature should now do the thumbnailMD5 and if not find another signature.:w
-            photos.datasetChanged = True 
+            photos[photo_file].signature = get_file_signature(photos, tags, photo_file)  #Get signature should now do the thumbnailMD5 and if not find another signature.
             photos[photo_file].gotTags = True
+            photos.datasetChanged = True 
     elapsed_time = time.time() - start_time
     logger.info("Tags extracted.  Elapsed time: {0:.0g} seconds or {1:.0g} ms per file = {2:.0g} for 100k files".format(elapsed_time, elapsed_time/file_count * 1000.0, elapsed_time/file_count * 100000.0/60.0))
     return(photos.datasetChanged)
