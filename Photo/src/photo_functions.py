@@ -23,9 +23,9 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
 		.signatures_match and .signature_and_tags_match property is updated for all files
 	else:
 		if archive_path and node_path are same:
-			.candidate property is updated for all and 'self' is excluded from list
+			.candidate* property is updated for all and 'self' is excluded from list
 		else:
-			.candidate property is updated for all files under node_path tree
+			.candidate* property is updated for all files under node_path tree and exclude matches in node_path
 	TODO:  This still needs work; not all collection/file combinations are supported
 	'''    
     logger = logging.getLogger()
@@ -63,26 +63,23 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
                                 node[nodepath].inArchive = True
                         else:
                             node[nodepath].signature_match.append(candidate)
-    else:  #TODO:  This needs to be rewritten to match archive != node approach once it is completed
-        if archive_path == node_path:
-            for file_count, nodepath in enumerate(node.photo.keys(), start = 1):
-                if file_count % 1000 == 0:
-                    print "File count:", file_count
-                signature = node[nodepath].signature
-                node[nodepath].signature_match = []
-                node[nodepath].signature_and_tags_match = []
-                node[nodepath].inArchive = False
-                if signature in archiveTable:
-                    for candidate in archiveTable[signature]:
-                        if candidate != nodepath:  #Do not record yourself as a match
+    else: #Handle assume_match_list here somehow 
+        for file_count, nodepath in enumerate(node.photo.keys(), start = 1):
+            if file_count % 1000 == 0:
+                print "File count:", file_count
+            signature = node[nodepath].signature
+            node[nodepath].signature_match = []
+            node[nodepath].signature_and_tags_match = []
+            node[nodepath].inArchive = False
+            if signature in archiveTable:
+                for candidate in archiveTable[signature]:
+                    if candidate != nodepath:  #Never record yourself as a match
+                        #Next line is boolean reduction of (node_path == archive_path) or (node_path != archive_path and node_path in nodepath)
+                        if node_path == archive_path or not node_path in nodepath: #Do not record duplicates in subtree if subtree being studied
                             if node[nodepath].userTags == archive[candidate].userTags:
                                 node[nodepath].signature_and_tags_match.append(candidate)
                             else:
                                 node[nodepath].signature_match.append(candidate) 
-        else:  #Remove all signature_match that share the node_path root
-            logger.error("***STUBBED OFF*** TODO Finish this function before doing subdirectory compares between collections")
-            print "***STUBBED OFF*** TODO subdirectory searches not yet supported."
-            sys.exit(1)
     logger.info("Done populating candidate properties")
                 
                 
@@ -95,9 +92,6 @@ def is_node_in_archive(archive, node, archive_path = None, node_path = None):
     if node_path == None:
         node_path = node.path
         
-    if 'Ornaments' in node_path:
-        pass        
-    
     allFilesInArchive = True  #Seed value; logic will falsify this value if any files are missing     
     
     if not node[node_path].isdir:
