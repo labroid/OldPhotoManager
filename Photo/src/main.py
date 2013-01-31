@@ -27,18 +27,18 @@ def main():
 #    sys.exit()
     
 #Now get candidate database
-    candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
-#    candidate = photo_functions.get_photo_data(None, env.get('candidatepickle'))
+#    candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
+    candidate = photo_functions.get_photo_data(None, env.get('candidatepickle'))
     print "For {0}:{1}".format(candidate.host, candidate.path)
     photo_functions.print_statistics(candidate)
 #    photo_functions.print_zero_files(candidate)
-    photo_functions.populate_duplicate_candidates(archive, candidate) #Maybe this should be a separate structure so it won't double-write...
-    logger.info("Finding if node is in archive (logged in main since function is recursive")
-    status = photo_functions.is_node_in_archive(archive, candidate)
+    target = "/home/shared/Photos/2011"
+    photo_functions.populate_duplicate_candidates(candidate, candidate, node_path = target) #Maybe this should be a separate structure so it won't double-write...
+    status = photo_functions.is_node_in_archive(candidate, node_path = target)
     print "Is candidate in archive?:", status
-    photo_functions.print_tree(candidate)
-    print "Biggest duplicate nodes:"
-    photo_functions.print_largest_duplicates(candidate)
+    photo_functions.print_tree(candidate, top = target)
+#    print "Biggest duplicate nodes:"
+#    photo_functions.print_largest_duplicates(candidate)
     print "Finished!"
 #    sys.exit()
     

@@ -10,8 +10,9 @@ logfile = /home/scott/PythonPhotos/log.txt
 #archivePickle = C:\Users\scott_jackson\Desktop\PhotoPickle.txt
 archivePickle = C:\Users\scott_jackson\Desktop\pickle
 logfile = C:\Users\scott_jackson\Desktop\log.txt
-candidate = C:\Users\scott_jackson\Pictures\Uploads
-candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt
+#candidate = C:\Users\scott_jackson\Pictures\Uploads
+#candidatepickle = c:\Users\scott_jackson\Desktop\CandidatePickle.txt
+candidatepickle = c:\Users\scott_jackson\Desktop\pickle.barney
 
 [Homer]
 archive = c:\Users\scott\Pictures

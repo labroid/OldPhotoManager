@@ -8,100 +8,104 @@ import os
 import sys
 import logging
 import datetime
-from operator import itemgetter
-from copy import deepcopy
+#from operator import itemgetter
+#from copy import deepcopy
 from pickle_manager import photo_pickler
 import photo_data
 import MD5sums
 
 logger = logging.getLogger()
-      
-def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
-    ''' 
-	Replaces the .signature_match list property for each element of the node_path as follows:
-	if archive and node are the different:
-		.signatures_match and .signature_and_tags_match property is updated for all files
-	else:
-		if archive_path and node_path are same:
-			.candidate* property is updated for all and 'self' is excluded from list
-		else:
-			.candidate* property is updated for all files under node_path tree and exclude matches in node_path
-	TODO:  This still needs work; not all collection/file combinations are supported
-	'''    
-    logger = logging.getLogger()
-    
-    if archive_path == None:
-        archive_path = archive.path
-    if node_path == None:
-        node_path = node.path
-        
-    logger.info("Building signature hash table for {0}".format(archive.path)) 
-    archiveTable = {}
-    for archiveFile in archive.photo.keys():
-        if archive[archiveFile].signature in archiveTable:
-            archiveTable[archive[archiveFile].signature].append(archiveFile)
-        else:
-            archiveTable[archive[archiveFile].signature] = [archiveFile]
-            
-    logger.info("Finding duplicates...")
-    assume_match_list = ['.picasa.ini', 'Picasa.ini', 'picasa.ini']  #TODO Make this configurable
-    file_count = 0
-    if archive != node:
-        for nodepath in node.photo.keys():
-            if os.path.normpath(os.path.basename(nodepath)) in assume_match_list:
-                node[nodepath].inArchive = True
-            else:
-                signature = node[nodepath].signature
-                node[nodepath].signature_match = []
-                node[nodepath].signature_and_tags_match = []
-                node[nodepath].inArchive = False
-                if signature in archiveTable:
-                    for candidate in archiveTable[signature]:
-                        if node[nodepath].userTags == archive[candidate].userTags:
-                            node[nodepath].signature_and_tags_match.append(candidate)
-                            if not node[nodepath].isdir:
-                                node[nodepath].inArchive = True
-                        else:
-                            node[nodepath].signature_match.append(candidate)
-    else: #Handle assume_match_list here somehow 
-        for file_count, nodepath in enumerate(node.photo.keys(), start = 1):
-            if file_count % 1000 == 0:
-                print "File count:", file_count
-            signature = node[nodepath].signature
-            node[nodepath].signature_match = []
-            node[nodepath].signature_and_tags_match = []
-            node[nodepath].inArchive = False
-            if signature in archiveTable:
-                for candidate in archiveTable[signature]:
-                    if candidate != nodepath:  #Never record yourself as a match
-                        #Next line is boolean reduction of (node_path == archive_path) or (node_path != archive_path and node_path in nodepath)
-                        if node_path == archive_path or not node_path in nodepath: #Do not record duplicates in subtree if subtree being studied
-                            if node[nodepath].userTags == archive[candidate].userTags:
-                                node[nodepath].signature_and_tags_match.append(candidate)
-                            else:
-                                node[nodepath].signature_match.append(candidate) 
-    logger.info("Done populating candidate properties")
-                
-                
-def is_node_in_archive(archive, node, archive_path = None, node_path = None):
-    '''Determine if node is in archive.
+
+
+def build_hash_dict(archive, archive_path, hash_dict = {}, top = True):
+    '''Recursive function to build a hash dictionary with keys of file signatures and values 
+       being a list of files with that signature
     '''
-    
+    if top:
+        logger.info("Building signature hash dictionary for {0}".format(archive.path))
+    for dirpath in archive[archive_path].dirpaths:
+        build_hash_dict(archive, dirpath, hash_dict, False)
+    for archive_file in archive[archive_path].filepaths:
+        if archive[archive_file].signature in hash_dict:
+            hash_dict[archive[archive_file].signature].append(archive_file)
+        else:
+            hash_dict[archive[archive_file].signature] = [archive_file]
+    return hash_dict
+
+def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
+    logger.info("Populating duplicate candidates...")
     if archive_path == None:
         archive_path = archive.path
     if node_path == None:
         node_path = node.path
         
-    allFilesInArchive = True  #Seed value; logic will falsify this value if any files are missing     
+    #Clear all duplicate states
+    for nodepath in node.photo.keys():
+        node[nodepath].signature_match = []
+        node[nodepath].signature_and_tags_match = []
+        node[nodepath].inArchive = False
+        
+    archive_dict = build_hash_dict(archive, archive_path)
+    populate_duplicates(node, node_path, archive, archive_path, archive_dict)
     
-    if not node[node_path].isdir:
-        return(len(node[node_path].signature_and_tags_match) > 0)
     
+def populate_duplicates(node, node_path, archive, archive_path, archive_dict, top = True, mode = 'none'):
+    if top:
+        logger.info("Populating Duplicates...")
+        #if node and archive are different, record all duplicates
+        #if node and archive are same, and root same, record duplicates if not self
+        #if node and archive are same, and root different, record duplicates if in different tree
+        if node != archive:
+            mode = 'all'
+        else:
+            if node_path == archive_path:
+                mode = 'not self'
+            else:
+                mode = 'different tree'
+                
     for dirpath in node[node_path].dirpaths:
-        allFilesInArchive = is_node_in_archive(archive, node, archive_path, dirpath) and allFilesInArchive 
+        populate_duplicates(node, dirpath, archive, archive_path, archive_dict, False, mode)
     for filepath in node[node_path].filepaths:
-        allFilesInArchive = allFilesInArchive and node[filepath].inArchive
+        signature = node[filepath].signature
+        if signature in archive_dict:
+            for candidate in archive_dict[signature]:
+                if mode == 'all' or (mode == 'not self' and filepath != candidate) or mode == 'different tree' and not node_path in candidate:
+                    if node[filepath].userTags == archive[candidate].userTags:
+                        node[filepath].signature_and_tags_match.append(candidate)
+                    else:
+                        node[filepath].signature_match.append(candidate)
+    if top:
+        logger.info("Done populating duplicates.")
+      
+def is_node_in_archive(node, node_path = None, top = True):
+    '''Determine if node_path is in archive.
+    '''
+    if top:
+        if node_path == None:
+            node_path = node.path
+        logger.info("Determining if node is in archive...")
+        
+    if not node[node_path].isdir:
+        if len(node[node_path].signature_and_tags_match) > 0:
+            node[node_path].inArchive = True
+            logger.info("Done determining if node is in archive. Degenerate case: node_path is a file.")
+            return(True)
+    
+    allFilesInArchive = True  #Seed value; logic will falsify this value if any files are missing     
+    for dirpath in node[node_path].dirpaths:
+        allFilesInArchive = is_node_in_archive(node, dirpath, False) and allFilesInArchive 
+    for filepath in node[node_path].filepaths:
+        if len(node[filepath].signature_and_tags_match) > 0:
+            node[filepath].inArchive = True
+        else:
+            if os.path.basename(filepath) in ['.picasa.ini', 'Picasa.ini', 'picasa.ini', 'Thumbs.db']:  #TODO Make this configurable
+                node[filepath].inArchive = True
+            else:
+                node[filepath].inArchive = False
+                allFilesInArchive = False
     node[node_path].inArchive = allFilesInArchive
+    if top:
+        logger.info("Done determining if node is in archive.")
     return(allFilesInArchive)
 
     
@@ -270,9 +274,6 @@ def print_tree(photos, top = None, indent_level = 0):
         print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, filepath, photos[filepath].inArchive, photos[filepath].size, photos[filepath].signature_and_tags_match)
     for dirpath in photos.photo[top].dirpaths:
         print_tree(photos, dirpath, indent_level)
-    
-def prune_candidates(node): #This function should prune duplicates that are children of the same node
-    pass
     
 def find_duplicate_nodes(photos, top = None): #This is broken.  Resulting list is a list of tuples with some lists thrown in, including empty nested lists.  Doh!
     if top is None:
