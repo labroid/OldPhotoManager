@@ -94,11 +94,11 @@ def update_tree(photos, top = None):
             if not dirpath in photos.dir.keys():
                 logger.info("New directory detected: {0}".format(dirpath))
                 photos.dir[dirpath] = dir_data()
-            photos[dirpath].size = 0
-            photos[dirpath].signature = ''
-            photos[dirpath].dirpaths = dirpaths
-            photos[dirpath].filepaths = filepaths
-            photos[dirpath].inArchive = True
+            photos.dir[dirpath].size = 0
+            photos.dir[dirpath].signature = ''
+            photos.dir[dirpath].dirpaths = dirpaths
+            photos.dir[dirpath].filepaths = filepaths
+            photos.dir[dirpath].inArchive = True
             for filepath in filepaths:
                 if filepath in photos.photo:
                     file_stat = stat_node(filepath)
@@ -294,6 +294,8 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        print >>sys.stderr, "for help use --help"
 #        return 2
 def main():
+    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+    logging.basicConfig(filename = "/home/scott/Desktop/PythonPhoto/log.txt", format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     get_photo_data("/home/shared/Photos", "/home/scott/Desktop/PythonPhoto/newpickle.txt")
     print "Done!"
 
