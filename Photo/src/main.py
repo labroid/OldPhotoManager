@@ -10,6 +10,7 @@ from collections import defaultdict
 from photo_utils import environment
 from operator import itemgetter
 import photo_functions
+import photo_data
 import pickle_manager
 
 def main():
@@ -28,13 +29,13 @@ def main():
     
 #Now get candidate database
 #    candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
-    candidate = photo_functions.get_photo_data(None, env.get('candidatepickle'))
+    candidate = photo_data.get_photo_data(None, env.get('candidatepickle'))
     print "For {0}:{1}".format(candidate.host, candidate.path)
     photo_functions.print_statistics(candidate)
 #    photo_functions.print_zero_files(candidate)
     target = "/home/shared/Photos/2011"
     photo_functions.populate_duplicate_candidates(candidate, candidate, node_path = target) #Maybe this should be a separate structure so it won't double-write...
-    status = photo_functions.is_node_in_archive(candidate, node_path = target)
+    status = photo_functions.recurse_node_inclusion_check(candidate, node_path = target)
     print "Is candidate in archive?:", status
     photo_functions.print_tree(candidate, top = target)
 #    print "Biggest duplicate nodes:"

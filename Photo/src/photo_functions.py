@@ -8,18 +8,27 @@ import os
 import sys
 import logging
 import datetime
-#from operator import itemgetter
-#from copy import deepcopy
 from pickle_manager import photo_pickler
 import photo_data
 import MD5sums
 
 logger = logging.getLogger()
 
+class photo_state:
+    def __init__(self):
+        self.signature_and_tags_match = False
+        self.signatures_match = False
 
+class node_state:
+    def __init__(self):
+        self.size = 0
+        self.signature = ''
+        self.all_included = False
+        self.none_included = False
+        
 def build_hash_dict(archive, archive_path, hash_dict = {}, top = True):
     '''Recursive function to build a hash dictionary with keys of file signatures and values 
-       being a list of files with that signature
+       of 'list of files with that signature'
     '''
     if top:
         logger.info("Building signature hash dictionary for {0}".format(archive.path))
@@ -34,11 +43,8 @@ def build_hash_dict(archive, archive_path, hash_dict = {}, top = True):
 
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
     logger.info("Populating duplicate candidates...")
-    if archive_path == None:
-        archive_path = archive.path
-    if node_path == None:
-        node_path = node.path
-        
+#***********Start refactoring here**********
+#Remember to populate tree sizes and signatures somewhere in here; it was removed from photo_data      
     #Clear all duplicate states
     for nodepath in node.photo.keys():
         node[nodepath].signature_match = []
@@ -77,23 +83,27 @@ def populate_duplicates(node, node_path, archive, archive_path, archive_dict, to
     if top:
         logger.info("Done populating duplicates.")
       
-def is_node_in_archive(node, node_path = None, top = True):
+def check_node_inclusion_status(node, node_path = none):
     '''Determine if node_path is in archive.
     '''
-    if top:
-        if node_path == None:
-            node_path = node.path
-        logger.info("Determining if node is in archive...")
-        
+    logger.info("Determining if node is duplicated...")
+    if node_path == None:
+        node_path = node.path
+    dup_status = {}
     if not node[node_path].isdir:
         if len(node[node_path].signature_and_tags_match) > 0:
-            node[node_path].inArchive = True
-            logger.info("Done determining if node is in archive. Degenerate case: node_path is a file.")
+            dup_status[node_path].
+            [node_path].inArchive = True
+            logger.info("Done determining if node is duplicated. Degenerate case: node_path is a file.")
             return(True)
+    
+def recurse_node_inclusion_check(node, node_path = None, top = True):
+    '''Recurse through tree recording status of nodes
+    '''
     
     allFilesInArchive = True  #Seed value; logic will falsify this value if any files are missing     
     for dirpath in node[node_path].dirpaths:
-        allFilesInArchive = is_node_in_archive(node, dirpath, False) and allFilesInArchive 
+        allFilesInArchive = recurse_node_inclusion_check(node, dirpath, False) and allFilesInArchive 
     for filepath in node[node_path].filepaths:
         if len(node[filepath].signature_and_tags_match) > 0:
             node[filepath].inArchive = True
@@ -105,68 +115,12 @@ def is_node_in_archive(node, node_path = None, top = True):
                 allFilesInArchive = False
     node[node_path].inArchive = allFilesInArchive
     if top:
-        logger.info("Done determining if node is in archive.")
+        logger.info("Done determining if node is duplicated.")
     return(allFilesInArchive)
 
     
-def getTimestampFromTags(tags):
-    if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
-        timestamp = tags['Exif.Photo.DateTimeOriginal'].value
-    else:
-        timestamp = datetime.datetime.strptime('1800:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
-    return(timestamp)
 
-def thumbnailMD5sum(tags):
-    if len(tags.previews) > 0:
-        temp = MD5sums.stringMD5sum(tags.previews[0].data)
-    else:
-        temp = MD5sums.stringMD5sum("0")
-    return(temp)
-    
-def getUserTagsFromTags(tags):
-    if 'Xmp.dc.subject' in tags.xmp_keys:
-        return(tags['Xmp.dc.subject'].value)
-    else:
-        return('NA')
         
-def get_photo_data(node_path, pickle_path, node_update = True):
-    ''' Create instance of photo photo given one of three cases:
-    1.  Supply only node_path:  Create photo photo instance
-    2.  Supply only pickle_path:  load pickle.  Abort if pickle empty.
-    3.  Supply both node_path and pickle_path:  Try to load pickle. 
-                                                If exists:
-                                                    load pickle
-                                                    update pickle unless asked not to
-                                                else:
-                                                    create photo photo instance and create pickle
-    
-    all other cases are errors
-    '''
-    logger = logging.getLogger()
-    if node_path is not None and pickle_path is None:
-        logger.info("Creating photo_collection instance for {0}".format(node_path))
-        node = photo_data.create_collection(node_path)
-    elif node_path is None and pickle_path is not None:
-        logger.info("Unpacking pickle at {0}".format(pickle_path))
-        pickle = photo_pickler(pickle_path)
-        node = pickle.loadPickle()
-    elif node_path is not None and pickle_path is not None:
-        pickle = photo_pickler(pickle_path)
-        if pickle.pickleExists:
-            logger.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
-            node = pickle.loadPickle()
-            if node_update:
-                photo_data.update_collection(node)
-                pickle.dumpPickle(node)
-        else:
-            logger.info("Scanning node {0}".format(node_path))
-            node = photo_data.create_collection(node_path)
-            pickle = photo_pickler(pickle_path)
-            pickle.dumpPickle(node)
-    else:
-        logger.critical("function called with arguments:\"{0}\" and \"{1}\"".format(node_path, pickle_path))
-        sys.exit(1)
-    return(node)
 
 def listZeroLengthFiles(photos):
     zeroLengthNames = []
