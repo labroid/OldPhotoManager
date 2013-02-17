@@ -9,15 +9,14 @@ import sys
 import logging
 import datetime
 from pickle_manager import photo_pickler
-import photo_data
 import MD5sums
 
 logger = logging.getLogger()
 
 class photo_state:
     def __init__(self):
-        self.signature_and_tags_match = False
-        self.signatures_match = False
+        self.signature_and_tags_match = []
+        self.signatures_match = []
 
 class node_state:
     def __init__(self):
@@ -26,9 +25,56 @@ class node_state:
         self.all_included = False
         self.none_included = False
         
+class results:
+    def __init__(self):
+        self.photo = dict()
+        self.node = dict()
+        self.top = ''
+        
+class results:
+    def __init__(self):
+        self.
+def generate_result_structure(node, node_path, top = True, result = None):
+    if top:
+        result = results()
+        if node_path is None:
+            node_path = node.path
+        result.top = node_path
+#Do I need to do something here if node_path is a file??            
+#        if node_path is a file:
+#            result[node_path] = photo_state()
+#            return(result)
+    for dirpath in node[node_path].dir.dirpaths:
+        result.node[dirpath] = node_state()
+        generate_result_structure(node, dirpath, top = False, result)
+    for filepath in node[node_path].dir.filepaths:
+        result.photo[filepath] = photo_state()
+    return (result)
+
+def populate_tree_sizes(results, top = None, root_call = True):
+    '''Recursively descends photo tree structure and computes/populates sizes
+    '''
+    if root_call:
+        logger.info("Computing cumulative sizes for file tree.") 
+        if top is None:
+            top = results.path
+        
+    if results
+    if os.path.isfile(top):  #How do you check file type with new structure??
+        return results[top].size
+    
+    cumulative_size = 0
+    for dirpath in results[top].dirpaths:
+        cumulative_size += populate_tree_sizes(results, dirpath, root_call = False)
+    for filepath in results[top].filepaths:
+        cumulative_size += results[filepath].size
+    results[top].size = cumulative_size
+    return cumulative_size      
+        
 def build_hash_dict(archive, archive_path, hash_dict = {}, top = True):
     '''Recursive function to build a hash dictionary with keys of file signatures and values 
        of 'list of files with that signature'
+       [This is recursive as opposed to running through photos because of the ability to descend an archive_path]
     '''
     if top:
         logger.info("Building signature hash dictionary for {0}".format(archive.path))
@@ -43,8 +89,7 @@ def build_hash_dict(archive, archive_path, hash_dict = {}, top = True):
 
 def populate_duplicate_candidates(archive, node, archive_path = None, node_path = None):
     logger.info("Populating duplicate candidates...")
-#***********Start refactoring here**********
-#Remember to populate tree sizes and signatures somewhere in here; it was removed from photo_data      
+#Remember to populate tree sizes and signatures somewhere in here; it was removed from photo_obj      
     #Clear all duplicate states
     for nodepath in node.photo.keys():
         node[nodepath].signature_match = []
@@ -54,13 +99,12 @@ def populate_duplicate_candidates(archive, node, archive_path = None, node_path 
     archive_dict = build_hash_dict(archive, archive_path)
     populate_duplicates(node, node_path, archive, archive_path, archive_dict)
     
-    
 def populate_duplicates(node, node_path, archive, archive_path, archive_dict, top = True, mode = 'none'):
     if top:
         logger.info("Populating Duplicates...")
         #if node and archive are different, record all duplicates
         #if node and archive are same, and root same, record duplicates if not self
-        #if node and archive are same, and root different, record duplicates if in different tree
+        #if node and archive are same, and root different, record duplicates only if in different tree
         if node != archive:
             mode = 'all'
         else:
@@ -75,7 +119,7 @@ def populate_duplicates(node, node_path, archive, archive_path, archive_dict, to
         signature = node[filepath].signature
         if signature in archive_dict:
             for candidate in archive_dict[signature]:
-                if mode == 'all' or (mode == 'not self' and filepath != candidate) or mode == 'different tree' and not node_path in candidate:
+                if mode == 'all' or (mode == 'not self' and filepath != candidate) or (mode == 'different tree' and not node_path in candidate):
                     if node[filepath].userTags == archive[candidate].userTags:
                         node[filepath].signature_and_tags_match.append(candidate)
                     else:
@@ -118,78 +162,9 @@ def recurse_node_inclusion_check(node, node_path = None, top = True):
         logger.info("Done determining if node is duplicated.")
     return(allFilesInArchive)
 
+
     
 
-        
-
-def listZeroLengthFiles(photos):
-    zeroLengthNames = []
-    for target in photos.photo.keys():
-        if photos.photo[target].size == 0:
-            zeroLengthNames.append(target)
-    return(zeroLengthNames)
-    
-def get_statistics(photos):
-    class statistics:
-        def __init__(self):
-            self.dircount = 0
-            self.filecount = 0
-            self.unique_count = 0
-            self.dup_count = 0
-            self.dup_fraction = 0
-    logger = logging.getLogger()
-    stats = statistics()
-    photo_set = set()
-    for archive_file in photos.photo.keys():
-        if photos.photo[archive_file].isdir:
-            stats.dircount += 1
-        else:
-            stats.filecount += 1
-            md5 = photos.photo[archive_file].signature
-            if md5 in photo_set:
-                stats.dup_count += 1
-            else:
-                photo_set.add(md5)
-    stats.unique_count = len(photo_set)
-    stats.dup_fraction = stats.dup_count * 1.0 / stats.filecount
-    logger.info("Collection statistics:  Directories = {0}, Files = {1}, Unique signatures = {2}, Duplicates = {3}, Duplicate Fraction = {4:.2%}".format(
-        stats.dircount, stats.filecount, stats.unique_count, stats.dup_count, stats.dup_fraction))    
-    return(stats)
-            
-def print_statistics(photos):
-    result = get_statistics(photos)
-    print "Directories: {0}, Files: {1}, Unique photos: {2}, Duplicates: {3} ({4:.2%})".format(result.dircount, result.filecount, result.unique_count, result.dup_count, result.dup_fraction)
-    return
-
-def print_zero_length_files(photos):
-    zeroFiles = listZeroLengthFiles(photos)
-    if len(zeroFiles) == 0:
-        print "No zero-length files."
-    else:
-        print "Zero-length files:"
-        for names in zeroFiles:
-            print names
-        print ""
-    
-    
-def populate_tree_sizes(photos, top = '', root_call = True):
-    '''Recursively descends photo tree structure and computes/populates sizes
-    '''
-    if root_call:
-        logger.info("Computing cumulative sizes for file tree.") 
-        if top == '':
-            top = photos.path
-        
-    if os.path.isfile(top):
-        return photos[top].size
-    
-    cumulative_size = 0
-    for dirpath in photos[top].dirpaths:
-        cumulative_size += populate_tree_sizes(photos, dirpath, root_call = False)
-    for filepath in photos[top].filepaths:
-        cumulative_size += photos[filepath].size
-    photos[top].size = cumulative_size
-    return cumulative_size      
 
 
 def populate_tree_signatures(photos, top = '', root_call = True):
@@ -252,4 +227,14 @@ def print_largest_duplicates(photos):
     print "Big ones:"
     for x in big_ones:
         print x, photos[x[0]].inArchive, photos[x[0]].signature_and_tags_match
+
+def main():
+    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+    logging.basicConfig(filename = "/home/scott/Desktop/PythonPhoto/log.txt", format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
+    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
+    result = generate_result_structure(node, node_path = None)
+    print "Done!"
+
+if __name__ == "__main__":
+    sys.exit(main())
         

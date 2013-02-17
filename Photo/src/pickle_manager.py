@@ -6,10 +6,14 @@ Created on Dec 25, 2011
 import sys
 import os.path
 import logging
-from cPickle import Pickler, Unpickler
+from photo_data import photo_collection
 
-class photo_pickler:
+#from cPickle import Pickler, Unpickler
+import jsonpickle
+
+class photo_pickler(photo_collection):
     def __init__(self, picklePath):
+        self.logger = logging.getLogger()
         self.pickleExists = False
         self.picklePath = picklePath
         self.pickler = ''
@@ -19,42 +23,41 @@ class photo_pickler:
         self.check_pickle_path_exists()
         
     def check_pickle_path_exists(self):
-        logger = logging.getLogger()
         if os.path.exists(self.picklePath):
             self.pickleExists = True
         else:
             self.pickleExists = False
-            logger.warn('Pickle path does not exist: {0}'.format(self.picklePath))
+            self.logger.warn('Pickle path does not exist: {0}'.format(self.picklePath))
         return()
         
     def getPickleFile(self, fileMode):
-        logger = logging.getLogger()
         try:
             pickle_fp = open(self.picklePath, fileMode)
         except IOError as (errno, strerror):
-            logger.critical('Exiting: Fatal Error opening pickle at:{0}'.format(self.picklePath, strerror))
+            self.logger.critical('Exiting: Fatal Error opening pickle at:{0}'.format(self.picklePath, strerror))
             sys.exit(1)
         except:
-            logger.critical("Exiting:  Fatal Error opening pickle at:".format(self.picklePath))
+            self.logger.critical("Exiting:  Fatal Error opening pickle at:".format(self.picklePath))
             sys.exit(1)
         return(pickle_fp)
     
     def loadPickle(self):
-        logger = logging.getLogger()
-        logger.info("Unpacking pickle at {0}".format(self.picklePath))
+        self.logger.info("Unpacking pickle at {0}".format(self.picklePath))
         pickle_fp = self.getPickleFile('rb')
-        unpickler = Unpickler(pickle_fp)
-        package = unpickler.load()
+#        unpickler = Unpickler(pickle_fp)
+#        package = unpickler.load()
+        package = jsonpickle.decode(pickle_fp.read())
         pickle_fp.close()
-        logger.info("Pickle at {0} unpacked.".format(self.picklePath))
+        self.logger.info("Pickle at {0} unpacked.".format(self.picklePath))
         return(package)
             
     def dumpPickle(self, archive):
-        logger = logging.getLogger()
-        logger.info("Pickling latest results to {0}.".format(self.picklePath))
+        self.logger.info("Pickling latest results to {0}.".format(self.picklePath))
         pickle_fp = self.getPickleFile('wb')
-        pickler = Pickler(pickle_fp, protocol=2)
-        pickler.dump(archive)
+#        pickler = Pickler(pickle_fp, protocol=2)
+#        pickler.dump(archive)
+        pickle_fp.write(jsonpickle.encode(archive))
         pickle_fp.close()
-        logger.info("Pickling complete to {0}".format(self.picklePath))
+        self.pickleExists = True
+        self.logger.info("Pickling complete to {0}".format(self.picklePath))
         return()

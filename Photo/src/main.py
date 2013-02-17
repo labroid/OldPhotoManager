@@ -10,7 +10,7 @@ from collections import defaultdict
 from photo_utils import environment
 from operator import itemgetter
 import photo_functions
-import photo_data
+import photo
 import pickle_manager
 
 def main():
@@ -29,7 +29,7 @@ def main():
     
 #Now get candidate database
 #    candidate = photo_functions.get_photo_data(env.get('candidate'), env.get('candidatepickle'))
-    candidate = photo_data.get_photo_data(None, env.get('candidatepickle'))
+    candidate = photo.get_photo_data(None, env.get('candidatepickle'))
     print "For {0}:{1}".format(candidate.host, candidate.path)
     photo_functions.print_statistics(candidate)
 #    photo_functions.print_zero_files(candidate)
