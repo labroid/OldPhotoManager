@@ -35,7 +35,7 @@ def main():
 #    photo_functions.print_zero_files(candidate)
     target = "/home/shared/Photos/2011"
     photo_functions.populate_duplicate_candidates(candidate, candidate, node_path = target) #Maybe this should be a separate structure so it won't double-write...
-    status = photo_functions.recurse_node_inclusion_check(candidate, node_path = target)
+    status = photo_functions.node_inclusion_check(candidate, node_path = target)
     print "Is candidate in archive?:", status
     photo_functions.print_tree(candidate, top = target)
 #    print "Biggest duplicate nodes:"

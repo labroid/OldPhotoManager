@@ -2,16 +2,20 @@
 Created on Dec 25, 2011
 
 @author: scott_jackson
+
+TODO:  make pickle print pretty.  Also consider zipping it.
 '''
 import sys
 import os.path
 import logging
-from photo_data import photo_collection
+from photo_data import photo_collection, node_info
 
-#from cPickle import Pickler, Unpickler
-import jsonpickle
+from cPickle import Pickler, Unpickler
+#import jsonpickle
+#import json
 
-class photo_pickler(photo_collection):
+#class photo_pickler(photo_collection):
+class photo_pickler():
     def __init__(self, picklePath):
         self.logger = logging.getLogger()
         self.pickleExists = False
@@ -44,9 +48,10 @@ class photo_pickler(photo_collection):
     def loadPickle(self):
         self.logger.info("Unpacking pickle at {0}".format(self.picklePath))
         pickle_fp = self.getPickleFile('rb')
-#        unpickler = Unpickler(pickle_fp)
-#        package = unpickler.load()
-        package = jsonpickle.decode(pickle_fp.read())
+        unpickler = Unpickler(pickle_fp)
+        package = unpickler.load()
+#        package = jsonpickle.decode(pickle_fp.read())
+#        package = json.load(pickle_fp)
         pickle_fp.close()
         self.logger.info("Pickle at {0} unpacked.".format(self.picklePath))
         return(package)
@@ -54,9 +59,10 @@ class photo_pickler(photo_collection):
     def dumpPickle(self, archive):
         self.logger.info("Pickling latest results to {0}.".format(self.picklePath))
         pickle_fp = self.getPickleFile('wb')
-#        pickler = Pickler(pickle_fp, protocol=2)
-#        pickler.dump(archive)
-        pickle_fp.write(jsonpickle.encode(archive))
+        pickler = Pickler(pickle_fp, protocol=2)
+        pickler.dump(archive)
+#        pickle_fp.write(jsonpickle.encode(archive))
+#        json.dump(archive, pickle_fp)
         pickle_fp.close()
         self.pickleExists = True
         self.logger.info("Pickling complete to {0}".format(self.picklePath))
