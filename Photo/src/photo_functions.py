@@ -186,8 +186,11 @@ def is_node_in_archive(node, archive, node_path = None, archive_path = None):
     if archive_path is None:
         archive_path = node.path
     result = prepare_datasets(node, archive, node_path, archive_path)
-    node_inclusion_check(node, result, node_path)
-    print_tree(node, result)
+    [all_in_archive, none_in_archive] = node_inclusion_check(node, result, node_path)
+    print_tree(node, result, node_path)
+    return (all_in_archive, none_in_archive)
+
+#TODO:  Need to show same signatures, different tags!
     
 def prepare_datasets(node, archive, node_path = None, archive_path = None):
     if node_path is None:
@@ -203,7 +206,7 @@ def prepare_datasets(node, archive, node_path = None, archive_path = None):
         populate_tree_signatures(node)
     populate_duplicate_candidates(archive, node, result)
     return (result)
-    
+
 def print_tree(photos, result, top = None, indent_level = 0):
     '''Print Photo collection using a tree structure'''
     if top is None:
@@ -263,7 +266,7 @@ def main():
     node = node_pickle.loadPickle()
 #    archive_pickle = pickle_manager.photo_pickler(archive_pickle_file)
 #    archive = archive_pickle.loadPickle()
-    is_node_in_archive(node, node, node_path)
+    [all_in_archive, none_in_archive] = is_node_in_archive(node, node, node_path)
     print "Done!"
 
 if __name__ == "__main__":
