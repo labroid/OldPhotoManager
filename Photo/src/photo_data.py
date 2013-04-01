@@ -347,9 +347,12 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        print >>sys.stderr, "for help use --help"
 #        return 2
 def main():
-    photo_dir = "C:\Users\scott_jackson\Pictures\Process"
-    pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
-    log_file = "C:\Users\scott_jackson\Desktop\lap_log.txt"
+#    photo_dir = "C:\Users\scott_jackson\Pictures\Process"
+#    pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
+#    log_file = "C:\Users\scott_jackson\Desktop\lap_log.txt"
+    photo_dir = "/home/shared/Photos"
+    pickle_file = "/home/scott/Desktop/barneypickle.txt"
+    log_file = "/home/scott/Desktop/log.txt"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     logging.getLogger()

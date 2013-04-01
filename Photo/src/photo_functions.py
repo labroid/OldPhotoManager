@@ -257,8 +257,10 @@ def main():
 #    logfile = "/home/scott/Desktop/PythonPhoto/log.txt"
     logfile = "C:\Users\scott_jackson\Desktop\lap_log.txt"
 #    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
-    node_pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
-    node_path = "C:\Users\scott_jackson\Pictures\Process\\20111123"
+#    node_pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
+#    node_path = "C:\Users\scott_jackson\Pictures\Process\\20111123"
+    node_pickle_file = "C:\Users\scott_jackson\Desktop\\barneypickle.txt"
+    node_path = "/home/shared/Photos/2008"
 #    archive_pickle_file = "C:\Users\scott_jackson\Desktop\jsonpickle.txt"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = logfile, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')

@@ -8,7 +8,7 @@ TODO:  make pickle print pretty.  Also consider zipping it.
 import sys
 import os.path
 import logging
-from photo_data import photo_collection, node_info
+import photo_data
 
 from cPickle import Pickler, Unpickler
 #import jsonpickle
