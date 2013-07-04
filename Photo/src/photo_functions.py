@@ -49,9 +49,9 @@ def initialize_result_structure(node, node_path = None, result = None):
     return(result)
         
 def set_comparison_type(archive, node, result, archive_path = None, node_path = None):
-    #if result and archive are different, record all duplicates
-    #if result and archive are same, and root same, record duplicates if not self
-    #if result and archive are same, and root different, record duplicates only if in different tree
+    #if node and archive are different, record all duplicates
+    #if node and archive are same, and root same, record duplicates if not self
+    #if node and archive are same, and root different, record duplicates only if in different tree
     if archive_path is None:
         archive_path = archive.path
     if node_path is None:
@@ -228,30 +228,13 @@ def print_tree_line(photos, result, path, indent_level):
     else:
         print "{0}{1} {2} {3} {4} {5} {6} {7}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, photos[path].size, photos[path].signature, photos[path].userTags, result[path].signature_and_tags_match, result[path].signatures_match)
             
-#Refactor good to here
-
-    
-def find_duplicate_nodes(photos, top = None): #This is broken.  Resulting list is a list of tuples with some lists thrown in, including empty nested lists.  Doh!
-    if top is None:
-        top = photos.path
-       
-    duplicates = []
-    for dirpath in photos[top].dirpaths:
-        if photos[dirpath].inArchive:
-            duplicates.append((dirpath, photos[dirpath].size))
-        else:
-            duplicates.append(find_duplicate_nodes(photos, dirpath))
-    for filepath in photos[top].filepaths:
-        if photos[filepath].inArchive:
-            duplicates.append((filepath, photos[filepath].size))
-    return (duplicates)       
             
-def print_largest_duplicates(photos, result):            
-    all_in_archive_list = [x for x in result.node.keys() if result.node[x].all_in_archive]
-    big_ones = sorted(some_variable, key = lambda dupe: dupe[1], reverse = True)
-    print "Big ones:"
-    for x in big_ones:
-        print x, photos[x[0]].inArchive, photos[x[0]].signature_and_tags_match
+#def print_largest_duplicates(photos, result):            
+#    all_in_archive_list = [x for x in result.node.keys() if result.node[x].all_in_archive]
+#    big_ones = sorted(some_variable, key = lambda dupe: dupe[1], reverse = True)
+#    print "Big ones:"
+#    for x in big_ones:
+#        print x, photos[x[0]].inArchive, photos[x[0]].signature_and_tags_match
 
 def main():
 #    logfile = "/home/scott/Desktop/PythonPhoto/log.txt"

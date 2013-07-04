@@ -10,7 +10,6 @@ from collections import defaultdict
 from photo_utils import environment
 from operator import itemgetter
 import photo_functions
-import photo
 import pickle_manager
 
 def main():
