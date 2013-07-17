@@ -5,11 +5,13 @@ Created on Nov 23, 2011
 '''
 
 import os
+import os.path
 import sys
 import logging
 import MD5sums
 import pickle_manager
 from photo_data import photo_collection, node_info
+from cherrypy.lib.cpstats import json
 
 logger = logging.getLogger()
 
@@ -187,8 +189,7 @@ def is_node_in_archive(node, archive, node_path = None, archive_path = None):
         archive_path = node.path
     result = prepare_datasets(node, archive, node_path, archive_path)
     [all_in_archive, none_in_archive] = node_inclusion_check(node, result, node_path)
-    print_tree(node, result, node_path)
-    return (all_in_archive, none_in_archive)
+    return (result, all_in_archive, none_in_archive)
 
 #TODO:  Need to show same signatures, different tags!
     
@@ -227,16 +228,53 @@ def print_tree_line(photos, result, path, indent_level):
         print "{0}{1} {2} {3} {4} {5}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, result[path].none_in_archive, photos[path].size, photos[path].signature)
     else:
         print "{0}{1} {2} {3} {4} {5} {6} {7}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, photos[path].size, photos[path].signature, photos[path].userTags, result[path].signature_and_tags_match, result[path].signatures_match)
-            
-            
-#def print_largest_duplicates(photos, result):            
-#    all_in_archive_list = [x for x in result.node.keys() if result.node[x].all_in_archive]
-#    big_ones = sorted(some_variable, key = lambda dupe: dupe[1], reverse = True)
-#    print "Big ones:"
-#    for x in big_ones:
-#        print x, photos[x[0]].inArchive, photos[x[0]].signature_and_tags_match
+        
+def create_json_tree(photos, result, top = None):
+    '''Recursively create json representation of file tree for use by jstree'''
+    if top is None:
+        top = photos.path
+    json_tree = {"data" : {"title":os.path.basename(top),"icon":set_icon(top, result)}, "children" : []}
+    for filepath in photos[top].filepaths:
+        json_tree["children"].append({"data" : {"title" : "{0} {1} {2}".format(os.path.basename(filepath), result[filepath].signature_and_tags_match, result[filepath].signatures_match), "icon":set_icon(filepath, result)}})
+    for dirpath in photos[top].dirpaths:
+        json_tree["children"].append(create_json_tree(photos, result, dirpath))
+    return json_tree
 
+def set_icon(path, result):
+    if result[path].all_in_archive:
+        icon = "./green_button.png"
+    elif result[path].none_in_archive:
+        icon = "./red_button.png"
+    else:
+        icon = "./yellow_button.png"
+    return icon
+    
 def main():
+    html_header = '''
+    <!DOCTYPE html>
+<html>
+<head>
+    <title>Demo</title>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="jstree-v.pre1.0/jquery.jstree.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            $("#demo1").jstree({ 
+                "json_data" : {
+                    "data": 
+     '''
+    html_footer = '''
+                    },
+                "plugins" : [ "themes", "json_data", "ui" ]
+            }).bind("select_node.jstree", function (e, data) { alert(data.rslt.obj.data("id")); });
+        });
+    </script>
+</head>
+<body>
+<div id="demo1"></div>
+</body>
+</html>
+'''
 #    logfile = "/home/scott/Desktop/PythonPhoto/log.txt"
     logfile = "C:\Users\scott_jackson\Desktop\lap_log.txt"
 #    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
@@ -251,7 +289,15 @@ def main():
     node = node_pickle.loadPickle()
 #    archive_pickle = pickle_manager.photo_pickler(archive_pickle_file)
 #    archive = archive_pickle.loadPickle()
-    [all_in_archive, none_in_archive] = is_node_in_archive(node, node, node_path)
+    [result, all_in_archive, none_in_archive] = is_node_in_archive(node, node, node_path)
+    dog = create_json_tree(node, result, node_path)
+    print dog
+    print "formatting"
+    fp = open("C:\Users\scott_jackson\Documents\Personal\Programming\jQuery\json results.html", 'w')
+    fp.write(html_header)
+    print json.dump(dog, fp, indent=1)
+    fp.write(html_footer)
+    fp.close()
     print "Done!"
 
 if __name__ == "__main__":
