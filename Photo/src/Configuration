@@ -19,6 +19,7 @@ archive = c:\Users\scott\Pictures
 archivePickle = C:\Users\scott\Desktop\PhotoPickle.txt
 logfile = c:\users\scott\desktop\log.txt
 candidatepickle = None
+trash = not a real change this is to test git
 
 [barney]
 archive = /home/shared/Photos/
