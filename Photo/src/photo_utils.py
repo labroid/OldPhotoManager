@@ -3,6 +3,8 @@ Created on Dec 25, 2011
 
 @author: scott_jackson
 '''
+#pylint: disable=line-too-long
+
 import sys
 import ConfigParser
 import socket

@@ -3,15 +3,17 @@ Created on Nov 23, 2011
 
 @author: scott_jackson
 '''
+#pylint: disable=line-too-long
 
 import os
 import os.path
 import sys
 import logging
+import collections
 import MD5sums
 import pickle_manager
 from photo_data import photo_collection, node_info
-from cherrypy.lib.cpstats import json
+#from cherrypy.lib.cpstats import json
 
 logger = logging.getLogger()
 
@@ -19,8 +21,8 @@ class node_state(object):
     def __init__(self):
         self.all_in_archive = False
         self.none_in_archive = False
-        self.signature_and_tags_match = []
-        self.signatures_match = []
+        self.md5_match = []
+        self.signature_match = []
         
 class results(object):
     def __init__(self):
@@ -85,69 +87,71 @@ def populate_tree_sizes(photos, top = None, root_call = True):
     photos[top].size = cumulative_size
     return cumulative_size      
 
-def populate_tree_signatures(photos, top = None, root_call = True):
-    '''Recursively descends photo photo structure and computes aggregated signatures
-    Assumes all files have signatures populated; computes for signatures for directory structure
+def populate_tree_md5(photos, top = None, root_call = True):
+    '''Recursively descends photo photo structure and computes aggregated md5
+    Assumes all files have md5 populated; computes md5 for directory structure
     '''
     if root_call:
-        logger.info("Populating cumulative tree signatures for file tree.")
+        logger.info("Populating cumulative tree md5 for file tree.")
         if top is None:
             top = photos.path
     if not photos[top].isdir:
-        return photos[top].signature
-    cumulative_signature = ''
+        return photos[top].md5
+    cumulative_md5_string = ''
     for dirpath in photos[top].dirpaths:
-        cumulative_signature += populate_tree_signatures(photos, dirpath, root_call = False)
+        cumulative_md5_string += populate_tree_md5(photos, dirpath, root_call = False)
+    #Need something here like if len(photos[top].,filepaths) == 0:
+        #dont accumulate the md5, but pass it up the chain unchanged
+        #this keeps directory nodes from adding md5 content to directories with no siblings
     for filepath in photos[top].filepaths:
-        cumulative_signature += photos[filepath].signature
-    cumulative_MD5 = MD5sums.stringMD5sum(cumulative_signature)
-    photos[top].signature = cumulative_MD5
-    return cumulative_MD5
+        cumulative_md5_string += photos[filepath].md5
+    cumulative_md5 = MD5sums.stringMD5sum(cumulative_md5_string)
+    photos[top].md5 = cumulative_md5
+    return cumulative_md5
         
 def build_hash_dict(archive, archive_path, hash_dict = None):
     '''Recursive function to build a hash dictionary with keys of file signatures and values 
        of 'list of files with that signature'
        [This is recursive as opposed to running through photos because of the ability to descend an archive_path]
     '''
-    if hash_dict is None:
-        logger.info("Building signature hash dictionary for {0}".format(archive.path))
-        hash_dict = {}
+    if hash_dict is None:  #First iteration of recursion
+        logger.info("Building md5 hash dictionary for {0}".format(archive.path))
+        hash_dict = collections.defaultdict(list)
     for dirpath in archive[archive_path].dirpaths:
         build_hash_dict(archive, dirpath, hash_dict)
     for archive_file in archive[archive_path].filepaths:
-        if archive[archive_file].signature in hash_dict:
-            hash_dict[archive[archive_file].signature].append(archive_file)
-        else:
-            hash_dict[archive[archive_file].signature] = [archive_file]
+        hash_dict[archive[archive_file].md5].append(archive_file)
+    hash_dict[archive[archive_path].md5].append(archive_path)
     return hash_dict
 
 def populate_duplicate_candidates(archive, node, result, archive_dict = None, archive_path = None, node_path = None):
-    if not archive_dict: #Used to identify first call in recursion
+    if not archive_dict: #First iteration in recursion
         logger.info("Populating duplicate candidates...")
         if archive_path is None:
             archive_path = archive.path
         if node_path is None:
             node_path = node.path
-        #Clear all duplicate states
+        #Clear all duplicate states from result
         for nodepath in result.node.keys():
             result[nodepath].signature_match = []
-            result[nodepath].signature_and_tags_match = []
+            result[nodepath].md5_match = []
             result[nodepath].all_in_archive = False
             result[nodepath].none_in_archive = False
         archive_dict = build_hash_dict(archive, archive_path)
     for dirpath in node[node_path].dirpaths:
         populate_duplicate_candidates(archive, node, result, archive_dict, archive_path, dirpath)
     for filepath in node[node_path].filepaths:
-        signature = node[filepath].signature
-        if signature in archive_dict:
-            for candidate in archive_dict[signature]:
-                if result.mode == 'all' or (result.mode == 'not self' and filepath != candidate) or (result.mode == 'different tree' and not node_path in candidate):
-                    if node[filepath].userTags == archive[candidate].userTags:
-                        result[filepath].signature_and_tags_match.append(candidate)
-                    else:
-                        result[filepath].signature_match.append(candidate)
-    if not archive_dict:
-        logger.info("Done populating duplicates.")
+        md5 = node[filepath].md5
+        if md5 in archive_dict:
+            for candidate in archive_dict[md5]:
+                if result.mode == 'all' or (result.mode == 'not self' and filepath != candidate) or (result.mode == 'different tree' and not node.path in candidate): 
+                    result[filepath].md5_match.append(candidate)
+    if node_path == "/home/shared/Photos/Upload/2009/10/30":
+        pass
+    if node[node_path].md5 in archive_dict:
+        for candidate in archive_dict[node[node_path].md5]:
+            if result.mode == 'all' or (result.mode == 'not self' and node_path != candidate) or (result.mode == 'different tree' and not node.path in candidate):
+                result[node_path].md5_match.append(candidate)
     return
     
 def node_inclusion_check(node, result, node_path = None, top = True):
@@ -162,10 +166,10 @@ def node_inclusion_check(node, result, node_path = None, top = True):
         all_in_archive = all_in_archive and all_in_tree
         none_in_archive = none_in_archive and none_in_tree
     for filepath in node[node_path].filepaths:
-        if result[filepath].signature_and_tags_match: #True if the signature_and_tags_match list isn't empty
+        if result[filepath].md5_match: #True if the md5_match list isn't empty
             result[filepath].all_in_archive = True
             result[filepath].none_in_archive = False
-            #all_in_archive = all_in_archive and True   #Shown here for completeness, commented since it is a boolean identity
+            #all_in_archive = all_in_archive and True   #Shown here for completeness, commented out since it is a boolean identity
             none_in_archive = False
         else:
             if os.path.basename(filepath) in ['.picasa.ini', 'Picasa.ini', 'picasa.ini', 'Thumbs.db']:  #TODO Make this configurable
@@ -201,10 +205,10 @@ def prepare_datasets(node, archive, node_path = None, archive_path = None):
     result = initialize_result_structure(node)
     set_comparison_type(archive, node, result)
     populate_tree_sizes(archive)
-    populate_tree_signatures(archive)
+    populate_tree_md5(archive)
     if archive != node:
         populate_tree_sizes(node)
-        populate_tree_signatures(node)
+        populate_tree_md5(node)
     populate_duplicate_candidates(archive, node, result)
     return (result)
 
@@ -227,7 +231,7 @@ def print_tree_line(photos, result, path, indent_level):
     if photos[path].isdir:
         print "{0}{1} {2} {3} {4} {5}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, result[path].none_in_archive, photos[path].size, photos[path].signature)
     else:
-        print "{0}{1} {2} {3} {4} {5} {6} {7}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, photos[path].size, photos[path].signature, photos[path].userTags, result[path].signature_and_tags_match, result[path].signatures_match)
+        print "{0}{1} {2} {3} {4} {5} {6} {7}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, photos[path].size, photos[path].signature, photos[path].userTags, result[path].md5_match, result[path].signature_match)
         
 def create_json_tree(photos, result, top = None):
     '''Recursively create json representation of file tree for use by jstree'''
@@ -235,7 +239,7 @@ def create_json_tree(photos, result, top = None):
         top = photos.path
     json_tree = {"data" : {"title":os.path.basename(top),"icon":set_icon(top, result)}, "children" : []}
     for filepath in photos[top].filepaths:
-        json_tree["children"].append({"data" : {"title" : "{0} {1} {2}".format(os.path.basename(filepath), result[filepath].signature_and_tags_match, result[filepath].signatures_match), "icon":set_icon(filepath, result)}})
+        json_tree["children"].append({"data" : {"title" : "{0} {1} {2}".format(os.path.basename(filepath), result[filepath].md5_match, result[filepath].signature_match), "icon":set_icon(filepath, result)}})
     for dirpath in photos[top].dirpaths:
         json_tree["children"].append(create_json_tree(photos, result, dirpath))
     return json_tree
@@ -276,12 +280,12 @@ def main():
 </html>
 '''
 #    logfile = "/home/scott/Desktop/PythonPhoto/log.txt"
-    logfile = "C:\Users\scott_jackson\Desktop\lap_log.txt"
+    logfile = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/lap_log.txt"
 #    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
 #    node_pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
 #    node_path = "C:\Users\scott_jackson\Pictures\Process\\20111123"
-    node_pickle_file = "C:\Users\scott_jackson\Desktop\\barneypickle.txt"
-    node_path = "/home/shared/Photos/2008"
+    node_pickle_file = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/barneypickle.txt"
+#    node_path = "/home/shared/Photos/2008"
 #    archive_pickle_file = "C:\Users\scott_jackson\Desktop\jsonpickle.txt"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = logfile, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
@@ -289,15 +293,19 @@ def main():
     node = node_pickle.loadPickle()
 #    archive_pickle = pickle_manager.photo_pickler(archive_pickle_file)
 #    archive = archive_pickle.loadPickle()
-    [result, all_in_archive, none_in_archive] = is_node_in_archive(node, node, node_path)
-    dog = create_json_tree(node, result, node_path)
-    print dog
-    print "formatting"
-    fp = open("C:\Users\scott_jackson\Documents\Personal\Programming\jQuery\json results.html", 'w')
-    fp.write(html_header)
-    print json.dump(dog, fp, indent=1)
-    fp.write(html_footer)
-    fp.close()
+    [result, all_in_archive, none_in_archive] = is_node_in_archive(node, node)
+    for row in result.node.keys():
+        print row, "|", node[row].size, "|", node[row].md5, "|", result[row].all_in_archive, "|", result[row].none_in_archive, "|", result[row].md5_match, "|", result[row].signature_match
+
+    
+#    dog = create_json_tree(node, result, node_path)
+#    print dog
+#    print "formatting"
+#    fp = open("C:\Users\scott_jackson\Documents\Personal\Programming\jQuery\json results.html", 'w')
+#    fp.write(html_header)
+#    print json.dump(dog, fp, indent=1)
+#    fp.write(html_footer)
+#    fp.close()
     print "Done!"
 
 if __name__ == "__main__":

@@ -8,6 +8,8 @@ Created on Oct 21, 2011
 @author: scott_jackson
 
 '''
+#pylint: disable=line-too-long
+
 import sys
 import os
 import time
@@ -39,6 +41,7 @@ class node_info(object):
     def __init__(self):
         self.isdir = False
         self.size = 0
+        self.md5 = ''
         self.signature = ''
         self.dirpaths = []
         self.filepaths = []      
@@ -171,6 +174,7 @@ def extract_populate_tags(photos, filelist = None):
                     photos[photo_file].timestamp = getTimestampFromTags(tags)  
             else:
                 tags = None   
+            photos[photo_file].md5 = MD5sums.fileMD5sum(photo_file)
             photos[photo_file].signature = get_file_signature(photos, tags, photo_file)  #Get signature should now do the thumbnailMD5 and if not find another signature.
             photos[photo_file].gotTags = True
             photos.datasetChanged = True 
@@ -187,10 +191,11 @@ def get_file_signature(photos, tags, filepath):
         if str.lower(os.path.splitext(filepath)[1]) in TEXT_FILES:
             signature = MD5sums.text_file_MD5_signature(filepath)
         else:
-            if photos[filepath].size < LENGTH_LIMIT:
-                signature = MD5sums.fileMD5sum(filepath)
-            else:
-                signature = MD5sums.truncatedMD5sum(filepath, LENGTH_LIMIT)
+#            if photos[filepath].size < LENGTH_LIMIT:
+#                signature = MD5sums.fileMD5sum(filepath)
+#            else:
+#                signature = MD5sums.truncatedMD5sum(filepath, LENGTH_LIMIT)
+            signature = photos[filepath].md5
     return(signature)
 
 def getTimestampFromTags(tags):
@@ -291,9 +296,9 @@ def print_tree(photos, top = None, indent_level = 0, first_call = True):
 def print_tree_line(photos, path, indent_level):
     INDENT_WIDTH = 3 #Number of spaces for each indent level
     if photos[path].isdir:
-        print "{0}{1} {2} {3}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].signature)
+        print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].md5, photos[path].signature)
     else:
-        print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].signature, photos[path].userTags)
+        print "{0}{1} {2} {3} {4} {5}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].md5, photos[path].signature, photos[path].userTags)
             
 def get_photo_data(node_path, pickle_path, node_update = True):
     ''' Create instance of photo photo given one of three cases:
@@ -310,10 +315,10 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     if not node_path and not pickle_path: #Both paths undefined (None or blank string)
         logger.critical("Function called with no arguments.  Aborting.")
         sys.exit(1)
-    elif node_path and not pickle_path:
+    elif node_path and not pickle_path: #Only node path is given
         logger.info("Creating photo_collection instance for {0}".format(node_path))
         return(photo_collection(node_path))
-    elif not node_path and pickle_path:
+    elif not node_path and pickle_path:  #Only pickle is given
         logger.info("Unpacking pickle at {0}".format(pickle_path))
         pickle = pickle_manager.photo_pickler(pickle_path)
         return(pickle.loadPickle())
@@ -351,9 +356,9 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        print >>sys.stderr, "for help use --help"
 #        return 2
 def main():
-    photo_dir = "C:\Users\scott_jackson\Pictures\Process"
-    pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
-    log_file = "C:\Users\scott_jackson\Desktop\lap_log.txt"
+    photo_dir = "C:\\Users\\scott_jackson\\Pictures\\2000"
+    pickle_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_pickle.txt"
+    log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
 #    photo_dir = "/home/shared/Photos"
 #    pickle_file = "/home/scott/Desktop/barneypickle.txt"
 #    log_file = "/home/scott/Desktop/log.txt"
