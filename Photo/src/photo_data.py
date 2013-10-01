@@ -356,8 +356,9 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        print >>sys.stderr, "for help use --help"
 #        return 2
 def main():
-    photo_dir = "C:\\Users\\scott_jackson\\Pictures\\2000"
-    pickle_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_pickle.txt"
+#    photo_dir = "C:\\Users\\scott_jackson\\Pictures\\2000"
+    photo_dir = "C:/Users/scott_jackson/Pictures/2012 Summer"
+    pickle_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\2012-summer_pickle.txt"
     log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
 #    photo_dir = "/home/shared/Photos"
 #    pickle_file = "/home/scott/Desktop/barneypickle.txt"

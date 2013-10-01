@@ -10,6 +10,7 @@ import os.path
 import sys
 import logging
 import collections
+import tables as tbl
 import MD5sums
 import pickle_manager
 from photo_data import photo_collection, node_info
@@ -225,6 +226,22 @@ def print_tree(photos, result, top = None, indent_level = 0):
     for dirpath in photos[top].dirpaths:
         print_tree(photos, result, dirpath, indent_level)
     return
+
+def print_top_level_duplicates_tree(photos, result, top = None, indent_level = 0):
+    '''Print Photo collection using a tree structure only showing the top node of an 'included' subtree'''
+    if top is None:
+        top = photos.path
+    if indent_level == 0:  #Used to detect first call of recursion
+        print "Photo Collection at {0}:{1} pickled at {2}".format(photos.host, photos.path, photos.pickle)    
+    print_tree_line(photos, result, top, indent_level)
+    if result[top].all_in_archive and photos[top].isdir:
+        return  #Stop descending as soon as you find a directory that is in the archive from there down...
+    indent_level += 1
+    for filepath in photos[top].filepaths:
+        print_tree_line(photos, result, filepath, indent_level)
+    for dirpath in photos[top].dirpaths:
+        print_top_level_duplicates_tree(photos, result, dirpath, indent_level)
+    return
     
 def print_tree_line(photos, result, path, indent_level):
     INDENT_WIDTH = 3 #Number of spaces for each indent level
@@ -252,8 +269,17 @@ def set_icon(path, result):
     else:
         icon = "./yellow_button.png"
     return icon
+
+class Particle(tbl.IsDescription):
+    node = tbl.StringCol(250)
+    size  = tbl.Int64Col()      # Signed 64-bit integer
+    md5sum  = tbl.StringCol(20)     # Unsigned short integer
+    all_in_archive  = tbl.StringCol(10)      # unsigned byte
+    md5_match    = tbl.StringCol(300)      # integer
     
 def main():
+
+        
     html_header = '''
     <!DOCTYPE html>
 <html>
@@ -284,19 +310,25 @@ def main():
 #    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
 #    node_pickle_file = "C:\Users\scott_jackson\Desktop\lap_pickle.txt"
 #    node_path = "C:\Users\scott_jackson\Pictures\Process\\20111123"
-    node_pickle_file = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/barneypickle.txt"
+#    node_pickle_file = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/smitherspickle.txt"
+    archive_pickle_file = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/smitherspickle.txt"
+    node_pickle_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_100CANON_pickle.txt"
 #    node_path = "/home/shared/Photos/2008"
 #    archive_pickle_file = "C:\Users\scott_jackson\Desktop\jsonpickle.txt"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = logfile, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     node_pickle = pickle_manager.photo_pickler(node_pickle_file)
     node = node_pickle.loadPickle()
-#    archive_pickle = pickle_manager.photo_pickler(archive_pickle_file)
-#    archive = archive_pickle.loadPickle()
-    [result, all_in_archive, none_in_archive] = is_node_in_archive(node, node)
+    archive_pickle = pickle_manager.photo_pickler(archive_pickle_file)
+    archive = archive_pickle.loadPickle()
+    node = archive  #<-*****************Watch this!!!!!!!!!!!!!!++++++++==============
+    [result, all_in_archive, none_in_archive] = is_node_in_archive(node, node, "/media/rmv1/Photos/2009", "/media/rmv1/Photos/2009")
     for row in result.node.keys():
         print row, "|", node[row].size, "|", node[row].md5, "|", result[row].all_in_archive, "|", result[row].none_in_archive, "|", result[row].md5_match, "|", result[row].signature_match
 
+    print "****************************"
+#    print_top_level_duplicates_tree(node, result)
+    print_tree(node, result)
     
 #    dog = create_json_tree(node, result, node_path)
 #    print dog
@@ -306,6 +338,34 @@ def main():
 #    print json.dump(dog, fp, indent=1)
 #    fp.write(html_footer)
 #    fp.close()
+#***************************************
+
+
+#     print "Creating h5 table"
+# 
+#     # Define a user record to characterize some kind of particles
+#     
+#     filename = "test.h5"
+#     # Open a file in "w"rite mode
+#     h5file = tbl.openFile(filename, mode = "w", title = "Test file")
+#     # Create a new group under "/" (root)
+#     group = h5file.createGroup("/", 'detector', 'Detector information')
+#     # Create one table on it
+#     table = h5file.createTable(group, 'readout', Particle, "Readout example")
+#     # Fill the table with 10 particles
+#     particle = table.row
+#     for filepath in result.node.keys():
+#         particle['node']  = filepath
+#         particle['size'] = node[filepath].size
+#         particle['md5sum'] = node[filepath].md5
+#         particle['all_in_archive'] = result[filepath].all_in_archive
+#         particle['md5_match'] = ", ".join(result[filepath].md5_match)
+#     
+#         # Insert a new particle record
+#         particle.append()
+#     # Close (and flush) the file
+#     h5file.close()
+#***************************************
     print "Done!"
 
 if __name__ == "__main__":
