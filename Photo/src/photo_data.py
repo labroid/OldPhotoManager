@@ -306,13 +306,13 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     2.  Supply only pickle_path:  load pickle.  Abort if pickle empty.
     3.  Supply both node_path and pickle_path:  Try to load pickle. 
             If exists:
-               load pickle
-            update pickle unless asked not to
-               else:
-            create photo photo instance and create pickle
+                load pickle
+                update pickle unless asked not to
+            else:
+                create photo photo instance and create pickle
     all other cases are errors
     '''
-    if not node_path and not pickle_path: #Both paths undefined (None or blank string)
+    if not node_path and not pickle_path: #Both paths undefined (None or empty string)
         logger.critical("Function called with no arguments.  Aborting.")
         sys.exit(1)
     elif node_path and not pickle_path: #Only node path is given

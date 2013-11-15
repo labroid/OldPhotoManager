@@ -278,33 +278,6 @@ class Particle(tbl.IsDescription):
     md5_match    = tbl.StringCol(300)      # integer
     
 def main():
-
-        
-    html_header = '''
-    <!DOCTYPE html>
-<html>
-<head>
-    <title>Demo</title>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-    <script type="text/javascript" src="jstree-v.pre1.0/jquery.jstree.js"></script>
-    <script type="text/javascript">
-        $(function () {
-            $("#demo1").jstree({ 
-                "json_data" : {
-                    "data": 
-     '''
-    html_footer = '''
-                    },
-                "plugins" : [ "themes", "json_data", "ui" ]
-            }).bind("select_node.jstree", function (e, data) { alert(data.rslt.obj.data("id")); });
-        });
-    </script>
-</head>
-<body>
-<div id="demo1"></div>
-</body>
-</html>
-'''
 #    logfile = "/home/scott/Desktop/PythonPhoto/log.txt"
     logfile = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/lap_log.txt"
 #    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
@@ -330,44 +303,6 @@ def main():
 #    print_top_level_duplicates_tree(node, result)
     print_tree(node, result)
     
-#    dog = create_json_tree(node, result, node_path)
-#    print dog
-#    print "formatting"
-#    fp = open("C:\Users\scott_jackson\Documents\Personal\Programming\jQuery\json results.html", 'w')
-#    fp.write(html_header)
-#    print json.dump(dog, fp, indent=1)
-#    fp.write(html_footer)
-#    fp.close()
-#***************************************
-
-
-#     print "Creating h5 table"
-# 
-#     # Define a user record to characterize some kind of particles
-#     
-#     filename = "test.h5"
-#     # Open a file in "w"rite mode
-#     h5file = tbl.openFile(filename, mode = "w", title = "Test file")
-#     # Create a new group under "/" (root)
-#     group = h5file.createGroup("/", 'detector', 'Detector information')
-#     # Create one table on it
-#     table = h5file.createTable(group, 'readout', Particle, "Readout example")
-#     # Fill the table with 10 particles
-#     particle = table.row
-#     for filepath in result.node.keys():
-#         particle['node']  = filepath
-#         particle['size'] = node[filepath].size
-#         particle['md5sum'] = node[filepath].md5
-#         particle['all_in_archive'] = result[filepath].all_in_archive
-#         particle['md5_match'] = ", ".join(result[filepath].md5_match)
-#     
-#         # Insert a new particle record
-#         particle.append()
-#     # Close (and flush) the file
-#     h5file.close()
-#***************************************
-    print "Done!"
-
 if __name__ == "__main__":
     sys.exit(main())
         
