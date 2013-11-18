@@ -14,7 +14,6 @@ import tables as tbl
 import MD5sums
 import pickle_manager
 from photo_data import photo_collection, node_info
-#from cherrypy.lib.cpstats import json
 
 logger = logging.getLogger()
 
@@ -278,6 +277,7 @@ class Particle(tbl.IsDescription):
     md5_match    = tbl.StringCol(300)      # integer
     
 def main():
+#TODO:  Parse options:  -u update, -p print tree -j print json -n node
 #    logfile = "/home/scott/Desktop/PythonPhoto/log.txt"
     logfile = "C:/Users/scott_jackson/Documents/Programming/PhotoManager/lap_log.txt"
 #    node = "C:\Users\scott_jackson\Desktop\newpickleorigupdate.txt"
