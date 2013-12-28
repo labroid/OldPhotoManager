@@ -24,62 +24,48 @@ class PhotoFunctions(object):
             self.none_in_archive = False
             self.md5_match = []
             self.signature_match = []
-            
-    class Results(object):
-        def __init__(self):
-            self.node = dict()
-            self.mode = None
-            self.candidate = ""
-            self.candidate_path = ""
-            self.archive = ""
-            self.archive_path = ""
-            
-        def __getitem__(self, key):
-            return self.node[key]
-        
-        def __setitem__(self, key, value):
-            self.node[key] = value
     
     def __init__(self, candidate, archive, candidate_path = None, archive_path = None):
-        self.result = self.Results()
-        self.result.candidate = candidate
-        self.result.archive = archive
+        self.node = dict()
+        self.mode = ''
+        self.candidate = candidate
+        self.archive = archive
         if candidate_path is None:
             candidate_path = candidate.path
         if archive_path is None:
             archive_path = archive.path
             
         logger.info('Initializing result structure')               
-        self.initialize_result_structure(self.result.candidate_path)
+        self.initialize_result_structure(self.candidate_path)
         self.set_comparison_type()
         self.populate_tree_sizes(archive)
         self.populate_tree_md5(archive)
         if archive != candidate:
             self.populate_tree_sizes(candidate)
             self.populate_tree_md5(candidate)
-        self.populate_duplicate_candidates(archive, candidate, self.result)  #I think this becomes a method, not part of init
+        self.populate_duplicate_candidates(archive, candidate, self.result)
         return ()
     
     def initialize_result_structure(self, path):
     #TODO Do I need to do something here if candidate_path is a file??  I don't think so - I think this should work            
-        self.result.node[path] = self.NodeState()
+        self.node[path] = self.NodeState()
         for dirpath in self.candidate[path].dirpaths:
             self.initialize_result_structure(dirpath)
         for filepath in self.candidate[path].filepaths:
-            self.result[filepath] = self.node()
+            self.node[filepath] = self.NodeState()
         return()
             
     def set_comparison_type(self):
         #if candidate and archive are different, record all duplicates
         #if candidate and archive are same, and root same, record duplicates if not self
         #if candidate and archive are same, and root different, record duplicates only if in different tree
-        if self.result.candidate != self.result.archive:  #TODO would like to use enumerated type here, but not available in Python 2.7 I think
-            self.result.mode = 'all'
+        if self.candidate != self.archive:  #TODO would like to use enumerated type here, but not available in Python 2.7 I think
+            self.mode = 'all'
         else:
-            if self.result.candidate_path == self.result.archive_path:
-                self.result.mode = 'not self'
+            if self.candidate_path == self.archive_path:
+                self.mode = 'not self'
             else:
-                self.result.mode = 'different tree'
+                self.mode = 'different tree'
         return
     
     def populate_tree_sizes(self, photos, top = None):
@@ -94,7 +80,7 @@ class PhotoFunctions(object):
         
         cumulative_size = 0
         for dirpath in photos[top].dirpaths:
-            cumulative_size += self.populate_tree_sizes(photos, dirpath, root_call = False)
+            cumulative_size += self.populate_tree_sizes(photos, dirpath)
         for filepath in photos[top].filepaths:
             cumulative_size += photos[filepath].size
         photos[top].size = cumulative_size
@@ -129,46 +115,46 @@ class PhotoFunctions(object):
            [This is recursive as opposed to running through photos because of the ability to descend an archive_path]
         '''
         if hash_dict is None:  #First iteration of recursion
-            logger.info("Building md5 hash dictionary for {0}".format(self.result.archive.path))
-            path = self.result.archive.path
+            logger.info("Building md5 hash dictionary for {0}".format(self.archive_path))
+            path = self.archive_path
             hash_dict = collections.defaultdict(list)
             
-        for dirpath in self.result.archive[path].dirpaths:
+        for dirpath in self.archive[path].dirpaths:
             self.build_hash_dict(dirpath, hash_dict)
-        for archive_file in self.result.archive[path].filepaths:
-            hash_dict[self.result.archive[archive_file].md5].append(archive_file)
-        hash_dict[self.result.archive[path].md5].append(path)
+        for filepath in self.archive[path].filepaths:
+            hash_dict[self.archive[filepath].md5].append(filepath)
+        hash_dict[self.archive[path].md5].append(path)
         return hash_dict
     
     def populate_duplicate_candidates(self, path = None):
         if path is None: #First iteration in recursion
             logger.info("Populating duplicate candidates...")
-            path = self.result.candidate_path
+            path = self.candidate_path
             #Clear all duplicate states from result
-            for nodepath in self.result.node.keys():
-                self.result[nodepath].signature_match = []
-                self.result[nodepath].md5_match = []
-                self.result[nodepath].all_in_archive = False
-                self.result[nodepath].none_in_archive = False
-            archive_dict = self.build_hash_dict(self)
+            for nodepath in self.node.keys():
+                self.node[nodepath].signature_match = []
+                self.node[nodepath].md5_match = []
+                self.node[nodepath].all_in_archive = False
+                self.node[nodepath].none_in_archive = False
+            archive_dict = self.build_hash_dict(self.archive_path)
             
-        for dirpath in self.result[path].dirpaths:
-            self.populate_duplicate_candidates(archive, node, result, archive_dict, archive_path, dirpath)
-        for filepath in node[node_path].filepaths:
-            md5 = node[filepath].md5
+        for dirpath in self.node[path].dirpaths:
+            self.populate_duplicate_candidates(dirpath)
+        for filepath in self.node[path].filepaths:
+            md5 = self.node[filepath].md5
             if md5 in archive_dict:
                 for candidate in archive_dict[md5]:
-                    if result.mode == 'all' or (result.mode == 'not self' and filepath != candidate) or (result.mode == 'different tree' and not node.path in candidate): 
-                        result[filepath].md5_match.append(candidate)
-        if node_path == "/home/shared/Photos/Upload/2009/10/30":
+                    if self.mode == 'all' or (self.mode == 'not self' and filepath != candidate) or (self.mode == 'different tree' and not self.candidate_path in candidate): #TODO I don't think this is right
+                        self.node[filepath].md5_match.append(candidate)
+        if self.candidate_path == "/home/shared/Photos/Upload/2009/10/30":
             pass
-        if node[node_path].md5 in archive_dict:
-            for candidate in archive_dict[node[node_path].md5]:
-                if result.mode == 'all' or (result.mode == 'not self' and node_path != candidate) or (result.mode == 'different tree' and not node.path in candidate):
-                    result[node_path].md5_match.append(candidate)
+        if node[candidate_path].md5 in archive_dict:
+            for candidate in archive_dict[node[candidate_path].md5]:
+                if result.mode == 'all' or (result.mode == 'not self' and candidate_path != candidate) or (result.mode == 'different tree' and not node.path in candidate):
+                    result[candidate_path].md5_match.append(candidate)
         return
         
-    def node_inclusion_check(self, node, result, node_path = None, top = True):
+    def node_inclusion_check(self, node, result, candidate_path = None, top = True):
         '''Recurse through tree recording status of nodes
         '''
         if top:

@@ -73,7 +73,7 @@ def update_collection(photos):
     logger.info("Total nodes: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(photos.node), elapsed_time, elapsed_time/len(photos.node)))
     return
     
-def update_tree(photos, top = None):
+def update_tree(photos, top = None):  #I don't think this needs to be recursive now that size and sums are computed elsewhere.
     '''Descend photo tree from top and add node instances for each node and leaf of the tree.
        If leaves exist, only update them if the mtime or size have changed.
     '''
@@ -317,7 +317,7 @@ def get_photo_data(node_path, pickle_path, node_update = True):
         sys.exit(1)
     elif node_path and not pickle_path: #Only node path is given
         logger.info("Creating photo_collection instance for {0}".format(node_path))
-        return(photo_collection(node_path))
+        return(create_collection(node_path))
     elif not node_path and pickle_path:  #Only pickle is given
         logger.info("Unpacking pickle at {0}".format(pickle_path))
         pickle = pickle_manager.photo_pickler(pickle_path)
@@ -340,7 +340,7 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
 #class Usage(Exception):
 #    def __init__(self, msg):
-#        self.msg = msg
+#        self.msg = '''Usage:  get_photo_data [-p pickle_path] [-l log_file] photos_path'''
 #
 #def main(argv=None):
 #    if argv is None:
@@ -357,8 +357,8 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        return 2
 def main():
 #    photo_dir = "C:\\Users\\scott_jackson\\Pictures\\2000"
-    photo_dir = "C:/Users/scott_jackson/Pictures/2012 Summer"
-    pickle_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\2012-summer_pickle.txt"
+    photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
+    pickle_file = None
     log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
 #    photo_dir = "/home/shared/Photos"
 #    pickle_file = "/home/scott/Desktop/barneypickle.txt"
