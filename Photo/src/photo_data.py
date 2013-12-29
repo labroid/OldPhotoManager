@@ -298,7 +298,7 @@ def print_tree_line(photos, path, indent_level):
     if photos[path].isdir:
         print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].md5, photos[path].signature)
     else:
-        print "{0}{1} {2} {3} {4} {5}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].md5, photos[path].signature, photos[path].userTags)
+        print "{0}{1} {2} {3} {4} {5} {6}".format(" " * INDENT_WIDTH * indent_level, path, photos[path].size, photos[path].md5, photos[path].signature, photos[path].userTags, photos[path].timestamp)
             
 def get_photo_data(node_path, pickle_path, node_update = True):
     ''' Create instance of photo photo given one of three cases:
