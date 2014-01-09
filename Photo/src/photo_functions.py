@@ -12,9 +12,7 @@ import logging
 import collections
 import MD5sums
 import pickle_manager
-from PhotoData import PhotoData, NodeInfo
-
-logger = logging.getLogger()
+import photo_data
 
 class PhotoFunctions(object):
 
@@ -35,7 +33,7 @@ class PhotoFunctions(object):
         if archive_path is None:
             archive_path = archive.path
             
-        logger.info('Initializing result structure')               
+        logging.info('Initializing result structure')               
         self.initialize_result_structure(self.candidate_path)
         self.set_comparison_type()
         self.populate_tree_sizes(archive)
@@ -72,7 +70,7 @@ class PhotoFunctions(object):
         '''Recursively descends photo tree structure and computes/populates sizes
         '''
         if top is None:  #This is initial recursive call
-            logger.info("Computing cumulative sizes for file tree.") 
+            logging.info("Computing cumulative sizes for file tree.") 
             top = PhotoData.path
             
         if not PhotoData[top].isdir:
@@ -91,7 +89,7 @@ class PhotoFunctions(object):
         Assumes all files have md5 populated; computes md5 for directory structure
         '''
         if top is None:  #This is initial recursive call
-            logger.info("Populating cumulative tree md5 for file tree.")
+            logging.info("Populating cumulative tree md5 for file tree.")
             top = PhotoData.path
                 
         if not PhotoData[top].isdir:
@@ -115,7 +113,7 @@ class PhotoFunctions(object):
            [This is recursive as opposed to running through PhotoData because of the ability to descend an archive_path]
         '''
         if hash_dict is None:  #First iteration of recursion
-            logger.info("Building md5 hash dictionary for {0}".format(self.archive_path))
+            logging.info("Building md5 hash dictionary for {0}".format(self.archive_path))
             path = self.archive_path
             hash_dict = collections.defaultdict(list)
             
@@ -128,7 +126,7 @@ class PhotoFunctions(object):
     
     def populate_duplicate_candidates(self, path = None):
         if path is None: #First iteration in recursion
-            logger.info("Populating duplicate candidates...")
+            logging.info("Populating duplicate candidates...")
             path = self.candidate_path
             #Clear all duplicate states from result
             for nodepath in self.node.keys():
@@ -158,7 +156,7 @@ class PhotoFunctions(object):
         '''Recurse through tree recording status of nodes
         '''
         if top:
-            logger.info("Determining if node is duplicated.")
+            logging.info("Determining if node is duplicated.")
         all_in_archive = True  #Seed value; logic will falsify this value if any files are missing     
         none_in_archive = True #Seed value
         for dirpath in node[node_path].dirpaths:
@@ -182,11 +180,11 @@ class PhotoFunctions(object):
         result[node_path].all_in_archive = all_in_archive
         result[node_path].none_in_archive = none_in_archive
         if top:
-            logger.info("Done determining if node is duplicated.")
+            logging.info("Done determining if node is duplicated.")
         return(all_in_archive, none_in_archive)
     
     def is_node_in_archive(self, node, archive, node_path = None, archive_path = None):
-        logger.info("Checking if node is in archive")
+        logging.info("Checking if node is in archive")
         if node_path is None:
             node_path = node.path
         if archive_path is None:

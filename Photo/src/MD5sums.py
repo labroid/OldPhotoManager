@@ -7,12 +7,11 @@ import hashlib
 import logging
 import os
 
-def fileMD5sum(filePath):
-    logger = logging.getLogger()
+def fileMD5sum(filepath):
     try:
-        fp = open(filePath, 'rb')
+        fp = open(filepath, 'rb')
     except:
-        logger.warning("Couldn't open file {0}.  Setting to default".format(filePath))
+        logging.warning("Couldn't open file {0}.  Setting to default".format(filepath))
         return("FFFFFFFFFFFFFFFF")
     m = hashlib.md5()
     while True:
@@ -34,11 +33,10 @@ def truncatedMD5sum(filepath, length = 1048578):
     the file.  Used, for example, to get a pretty good signature for a
     large .mov file
     '''
-    logger = logging.getLogger()
     try:
         fp = open(filepath, 'rb')
     except:
-        logger.warning("Couldn't open file {0}.  Setting MD5 sum to default".format(filepath))
+        logging.warning("Couldn't open file {0}.  Setting MD5 sum to default".format(filepath))
         return("FFFFFFFFFFFFFFFF")
     if os.path.getsize(filepath) > length:
         data = fp.read(length/2)
@@ -51,11 +49,10 @@ def truncatedMD5sum(filepath, length = 1048578):
     return truncated_sum 
 
 def text_file_MD5_signature(filepath):
-    logger = logging.getLogger()
     try:
         fp = open(filepath, 'rb')
     except:
-        logger.warning("Couldn't open file {0}.  Setting to default".format(filepath))
+        logging.warning("Couldn't open file {0}.  Setting to default".format(filepath))
         return("FFFFFFFFFFFFFFFF")
     m = hashlib.md5()
     for line in fp:

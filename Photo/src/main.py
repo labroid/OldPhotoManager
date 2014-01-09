@@ -14,7 +14,7 @@ import pickle_manager
 
 def main():
     env = environment('Configuration')
-    logger = logging.getLogger()
+    logging = logging.getLogger()
     
 #Get the archive database
 #    archive = PhotoFunctions.get_photo_data(None, env.get('archivepickle'))

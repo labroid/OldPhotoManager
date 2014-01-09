@@ -21,11 +21,9 @@ import socket
 import MD5sums
 import pickle_manager
 
-logger = logging.getLogger() #What is the naming convention for globals?
-
 class PhotoData(object):
     def __init__(self, path):
-        logger.debug("Creating photo data instance...")
+        logging.info("Creating photo data instance...")
         self.host = socket.gethostname()
         self.path = os.path.normpath(path)
         self.node = dict()
@@ -57,14 +55,14 @@ class PhotoData(object):
     def update_collection(self):
         start_time = time.time()
         if self.host != socket.gethostname():
-            logger.warning('Collection not on this machine; data set will not be updated')
+            logging.warning('Collection not on this machine; data set will not be updated')
             return
-        logger.debug("Updating photo collection at {0}:{1}".format(self.host, self.path))
+        logging.info("Updating photo collection at {0}:{1}".format(self.host, self.path))
         self._update_tree()
         self._prune_old_nodes()
         self._extract_populate_tags()
         elapsed_time = time.time() - start_time
-        logger.info("Total nodes: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.node), elapsed_time, elapsed_time/len(self.node)))
+        logging.info("Total nodes: {0}, Elapsed time: {1:.2} seconds or {2} ms/file".format(len(self.node), elapsed_time, elapsed_time/len(self.node)))
         return
     
     def _update_tree(self):
@@ -75,7 +73,7 @@ class PhotoData(object):
             print "Error", walk_err.errno, walk_err.strerror  #TODO Maybe some better error trapping here...
             raise
             
-        logger.info("Updating tree...")
+        logging.info("Updating tree...")
         if os.path.isfile(self.path):
             self[self.path].isDir = False
             self[self.path].in_archive = True  #Check that this is all that needs to be done...
@@ -84,7 +82,7 @@ class PhotoData(object):
                 dirpaths = [os.path.normpath(os.path.join(dirpath, dirname)) for dirname in dirnames]
                 filepaths = [os.path.normpath(os.path.join(dirpath, filename)) for filename in filenames]
                 if not dirpath in self.node:
-                    logger.info("New directory detected: {0}".format(dirpath))
+                    logging.debug("New directory detected: {0}".format(dirpath))
                     self.node[dirpath] = self.NodeInfo()
                 self[dirpath].size = 0
                 self[dirpath].isdir = True
@@ -101,17 +99,17 @@ class PhotoData(object):
                             self[filepath].mtime = file_stat.st_mtime
                             self[filepath].got_tags = False
                     else:
-                        logger.info("New File detected: {0}".format(filepath))
+                        logging.debug("New File detected: {0}".format(filepath))
                         self.node[filepath] = self.NodeInfo()
                     self[filepath].in_archive = True
-        logger.info("Done extracting tree.")
+        logging.info("Done extracting tree.")
         return
     
     def _stat_node(self, nodepath):
         try:
             file_stat = os.stat(nodepath)
         except:
-            logger.error("Can't stat file at {0}".format(nodepath))
+            logging.error("Can't stat file at {0}".format(nodepath))
             sys.exit(1)
         return(file_stat)    
                 
@@ -119,10 +117,10 @@ class PhotoData(object):
         '''Prune nodes from the photo collection that are no longer present.
            Also reset the in_archive flag to False
         '''
-        logger.info("Pruning old nodes from {0}".format(self.path))
+        logging.info("Pruning old nodes from {0}".format(self.path))
         for filepath in self.node.keys():
             if not self[filepath].in_archive:
-                logger.info("Pruning {0}".format(filepath))
+                logging.debug("Pruning {0}".format(filepath))
                 del self.node[filepath]
             else:
                 self[filepath].in_archive = False
@@ -134,7 +132,7 @@ class PhotoData(object):
         if filelist is None:
             filelist = [x for x in self.node.keys() if not self.node[x].isdir]
         total_files = len(filelist)
-        logger.info("Extracting tags for {0}.  File count = {1}".format(self.path, total_files))
+        logging.info("Extracting tags for {0}.  File count = {1}".format(self.path, total_files))
         start_time = time.time()
         tag_extract_count = 0
         for file_count, photo_file in enumerate(filelist, start = 1):
@@ -142,13 +140,13 @@ class PhotoData(object):
                 elapsed_time = time.time() - start_time
                 total_time_projected = float(elapsed_time) / float(file_count) * total_files
                 time_remaining = float(elapsed_time) / float(file_count) * float(total_files - file_count)
-                logger.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(seconds = time_remaining)),str(datetime.timedelta(seconds = total_time_projected))))
+                logging.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(seconds = time_remaining)),str(datetime.timedelta(seconds = total_time_projected))))
             if not self[photo_file].got_tags:
                 tag_extract_count += 1
                 if str.lower(os.path.splitext(photo_file)[1]) in PHOTO_FILES:
                     tags = self._get_tags_from_file(photo_file)
                     if tags is None:
-                        logger.warn("Bad tags in: {0}".format(photo_file))
+                        logging.warn("Bad tags in: {0}".format(photo_file))
                     else:
                         self[photo_file].user_tags = self._get_user_tags_from_tags(tags)
                         self[photo_file].timestamp = self._get_timestamp_from_tags(tags)  
@@ -159,7 +157,7 @@ class PhotoData(object):
                 self[photo_file].got_tags = True
                 self.dataset_changed = True 
         elapsed_time = time.time() - start_time
-        logger.info("Tags extracted.  {0} Updated. Elapsed time: {1:.0g} seconds or {2:.0g} ms per file = {3:.0g} for 100k files".format(tag_extract_count, elapsed_time, elapsed_time/total_files * 1000.0, elapsed_time/total_files * 100000.0/60.0))
+        logging.info("Tags extracted.  {0} Updated. Elapsed time: {1:.0g} seconds or {2:.0g} ms per file = {3:.0g} for 100k files".format(tag_extract_count, elapsed_time, elapsed_time/total_files * 1000.0, elapsed_time/total_files * 100000.0/60.0))
         return(self.dataset_changed)
         
     def _get_file_signature(self, tags, filepath):
@@ -196,10 +194,10 @@ class PhotoData(object):
             metadata = pyexiv2.ImageMetadata(filename)
             metadata.read()
         except IOError as err:  #The file contains photo of an unknown image type or file missing or can't be opened
-            logger.warning("%s IOError, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
+            logging.warning("%s IOError, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
             return(None)
         except:
-            logger.error("%s Unknown Error Trapped, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
+            logging.error("%s Unknown Error Trapped, errno = %s, strerror = %s args = %s", filename, str(err.errno), err.strerror, err.args)
             return(None)
         return(metadata)
     
@@ -241,7 +239,7 @@ class PhotoData(object):
                 
         stats.unique_count = len(photo_set)
         stats.dup_fraction = stats.dup_count * 1.0 / (stats.filecount + stats.dup_count)
-        logger.info("Collection statistics:  Directories = {0}, Files = {1}, Unique signatures = {2}, Duplicates = {3}, Duplicate Fraction = {4:.2%}".format(
+        logging.info("Collection statistics:  Directories = {0}, Files = {1}, Unique signatures = {2}, Duplicates = {3}, Duplicate Fraction = {4:.2%}".format(
             stats.dircount, stats.filecount, stats.unique_count, stats.dup_count, stats.dup_fraction))    
         return(stats)
             
@@ -294,25 +292,25 @@ def get_photo_data(node_path, pickle_path, node_update = True):
     all other cases are errors
     '''
     if not node_path and not pickle_path: #Both paths undefined (None or empty string)
-        logger.critical("Function called with no arguments.  Aborting.")
+        logging.critical("Function called with no arguments.  Aborting.")
         sys.exit(1)
     elif node_path and not pickle_path: #Only node path is given
-        logger.info("Creating PhotoData instance for {0}".format(node_path))
+        logging.info("Creating PhotoData instance for {0}".format(node_path))
         return(PhotoData(node_path))
     elif not node_path and pickle_path:  #Only pickle is given
-        logger.info("Unpacking pickle at {0}".format(pickle_path))
+        logging.info("Unpacking pickle at {0}".format(pickle_path))
         pickle = pickle_manager.photo_pickler(pickle_path)
         return(pickle.loadPickle())
     else:  #Both paths are defined
         pickle = pickle_manager.photo_pickler(pickle_path)
         if pickle.pickleExists:
-            logger.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
+            logging.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
             photos = pickle.loadPickle()
             if node_update:
                 photos.update_collection()
                 pickle.dumpPickle(photos)
         else:
-            logger.info("Scanning photos {0}; will pickle to {1}".format(node_path, pickle.picklePath))
+            logging.info("Scanning photos {0}; will pickle to {1}".format(node_path, pickle.picklePath))
             photos = PhotoData(node_path)
             photos.pickle = pickle_path
             pickle.dumpPickle(photos)
@@ -340,9 +338,10 @@ def main():
     photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
     pickle_file = None
     log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
+    
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
-    logging.getLogger()
+    
     photos = get_photo_data(photo_dir, pickle_file)
     photos.print_tree()
     print "Done!"
