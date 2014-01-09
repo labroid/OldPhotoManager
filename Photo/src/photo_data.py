@@ -81,8 +81,8 @@ class PhotoData(object):
             self[self.path].in_archive = True  #Check that this is all that needs to be done...
         else:
             for dirpath, dirnames, filenames in os.walk(self.path, onerror = _walk_error):
-                dirpaths = [os.path.join(dirpath, dirname) for dirname in dirnames]
-                filepaths = [os.path.join(dirpath, filename) for filename in filenames]
+                dirpaths = [os.path.normpath(os.path.join(dirpath, dirname)) for dirname in dirnames]
+                filepaths = [os.path.normpath(os.path.join(dirpath, filename)) for filename in filenames]
                 if not dirpath in self.node:
                     logger.info("New directory detected: {0}".format(dirpath))
                     self.node[dirpath] = self.NodeInfo()

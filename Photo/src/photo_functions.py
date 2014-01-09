@@ -12,7 +12,7 @@ import logging
 import collections
 import MD5sums
 import pickle_manager
-from photo_data import photo_collection, node_info
+from PhotoData import PhotoData, NodeInfo
 
 logger = logging.getLogger()
 
@@ -68,51 +68,51 @@ class PhotoFunctions(object):
                 self.mode = 'different tree'
         return
     
-    def populate_tree_sizes(self, photos, top = None):
+    def populate_tree_sizes(self, PhotoData, top = None):
         '''Recursively descends photo tree structure and computes/populates sizes
         '''
         if top is None:  #This is initial recursive call
             logger.info("Computing cumulative sizes for file tree.") 
-            top = photos.path
+            top = PhotoData.path
             
-        if not photos[top].isdir:
-            return photos[top].size
+        if not PhotoData[top].isdir:
+            return PhotoData[top].size
         
         cumulative_size = 0
-        for dirpath in photos[top].dirpaths:
-            cumulative_size += self.populate_tree_sizes(photos, dirpath)
-        for filepath in photos[top].filepaths:
-            cumulative_size += photos[filepath].size
-        photos[top].size = cumulative_size
+        for dirpath in PhotoData[top].dirpaths:
+            cumulative_size += self.populate_tree_sizes(PhotoData, dirpath)
+        for filepath in PhotoData[top].filepaths:
+            cumulative_size += PhotoData[filepath].size
+        PhotoData[top].size = cumulative_size
         return cumulative_size      
     
-    def populate_tree_md5(self, photos, top = None):
+    def populate_tree_md5(self, PhotoData, top = None):
         '''Recursively descends photo photo structure and computes aggregated md5
         Assumes all files have md5 populated; computes md5 for directory structure
         '''
         if top is None:  #This is initial recursive call
             logger.info("Populating cumulative tree md5 for file tree.")
-            top = photos.path
+            top = PhotoData.path
                 
-        if not photos[top].isdir:
-            return photos[top].md5
+        if not PhotoData[top].isdir:
+            return PhotoData[top].md5
         
         cumulative_md5_string = ''
-        for dirpath in photos[top].dirpaths:
-            cumulative_md5_string += self.populate_tree_md5(photos, dirpath)
-        #TODO:  Need something here like if len(photos[top].,filepaths) == 0:  Or maybe directories with no files but only sub directories don't get reported or are highlighted in the UI
+        for dirpath in PhotoData[top].dirpaths:
+            cumulative_md5_string += self.populate_tree_md5(PhotoData, dirpath)
+        #TODO:  Need something here like if len(PhotoData[top].,filepaths) == 0:  Or maybe directories with no files but only sub directories don't get reported or are highlighted in the UI
             #dont accumulate the md5, but pass it up the chain unchanged
             #this keeps directory nodes from adding md5 content to directories with no siblings
-        for filepath in photos[top].filepaths:
-            cumulative_md5_string += photos[filepath].md5
+        for filepath in PhotoData[top].filepaths:
+            cumulative_md5_string += PhotoData[filepath].md5
         cumulative_md5 = MD5sums.stringMD5sum(cumulative_md5_string)
-        photos[top].md5 = cumulative_md5
+        PhotoData[top].md5 = cumulative_md5
         return cumulative_md5
             
     def build_hash_dict(self, path = None, hash_dict = None):
         '''Recursive function to build a hash dictionary with keys of file signatures and values 
            of 'list of files with that signature'
-           [This is recursive as opposed to running through photos because of the ability to descend an archive_path]
+           [This is recursive as opposed to running through PhotoData because of the ability to descend an archive_path]
         '''
         if hash_dict is None:  #First iteration of recursion
             logger.info("Building md5 hash dictionary for {0}".format(self.archive_path))
@@ -198,52 +198,52 @@ class PhotoFunctions(object):
     #TODO:  Need to show same signatures, different tags!
         
 
-    def print_tree(self, photos, result, top = None, indent_level = 0):
+    def print_tree(self, PhotoData, result, top = None, indent_level = 0):
         '''Print Photo collection using a tree structure'''
         if top is None:
-            top = photos.path
+            top = PhotoData.path
         if indent_level == 0:  #Used to detect first call of recursion
-            print "Photo Collection at {0}:{1} pickled at {2}".format(photos.host, photos.path, photos.pickle)    
-        self.print_tree_line(photos, result, top, indent_level)
+            print "Photo Collection at {0}:{1} pickled at {2}".format(PhotoData.host, PhotoData.path, PhotoData.pickle)    
+        self._print_tree_line(PhotoData, result, top, indent_level)
         indent_level += 1
-        for filepath in photos[top].filepaths:
-            self.print_tree_line(photos, result, filepath, indent_level)
-        for dirpath in photos[top].dirpaths:
-            self.print_tree(photos, result, dirpath, indent_level)
+        for filepath in PhotoData[top].filepaths:
+            self._print_tree_line(PhotoData, result, filepath, indent_level)
+        for dirpath in PhotoData[top].dirpaths:
+            self.print_tree(PhotoData, result, dirpath, indent_level)
         return
     
-    def print_top_level_duplicates_tree(self, photos, result, top = None, indent_level = 0):
+    def print_top_level_duplicates_tree(self, PhotoData, result, top = None, indent_level = 0):
         '''Print Photo collection using a tree structure only showing the top node of an 'included' subtree'''
         if top is None:
-            top = photos.path
+            top = PhotoData.path
         if indent_level == 0:  #Used to detect first call of recursion
-            print "Photo Collection at {0}:{1} pickled at {2}".format(photos.host, photos.path, photos.pickle)    
-        self.print_tree_line(photos, result, top, indent_level)
-        if result[top].all_in_archive and photos[top].isdir:
+            print "Photo Collection at {0}:{1} pickled at {2}".format(PhotoData.host, PhotoData.path, PhotoData.pickle)    
+        self._print_tree_line(PhotoData, result, top, indent_level)
+        if result[top].all_in_archive and PhotoData[top].isdir:
             return  #Stop descending as soon as you find a directory that is in the archive from there down...
         indent_level += 1
-        for filepath in photos[top].filepaths:
-            self.print_tree_line(photos, result, filepath, indent_level)
-        for dirpath in photos[top].dirpaths:
-            self.print_top_level_duplicates_tree(photos, result, dirpath, indent_level)
+        for filepath in PhotoData[top].filepaths:
+            self._print_tree_line(PhotoData, result, filepath, indent_level)
+        for dirpath in PhotoData[top].dirpaths:
+            self.print_top_level_duplicates_tree(PhotoData, result, dirpath, indent_level)
         return
         
-    def print_tree_line(self, photos, result, path, indent_level):
+    def _print_tree_line(self, self, result, path, indent_level):
         INDENT_WIDTH = 3 #Number of spaces for each indent level
-        if photos[path].isdir:
-            print "{0}{1} {2} {3} {4} {5}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, result[path].none_in_archive, photos[path].size, photos[path].signature)
+        if self[path].isdir:
+            print "{0}{1} {2} {3} {4} {5}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, result[path].none_in_archive, self[path].size, self[path].signature)
         else:
-            print "{0}{1} {2} {3} {4} {5} {6} {7}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, photos[path].size, photos[path].signature, photos[path].userTags, result[path].md5_match, result[path].signature_match)
+            print "{0}{1} {2} {3} {4} {5} {6} {7}".format(" " * INDENT_WIDTH * indent_level, path, result[path].all_in_archive, self[path].size, self[path].signature, self[path].user_tags, result[path].md5_match, result[path].signature_match)
             
-    def create_json_tree(self, photos, result, top = None):
+    def create_json_tree(self, PhotoData, result, top = None):
         '''Recursively create json representation of file tree for use by jstree'''
         if top is None:
-            top = photos.path
+            top = PhotoData.path
         json_tree = {"data" : {"title":os.path.basename(top),"icon":self.set_icon(top, result)}, "children" : []}
-        for filepath in photos[top].filepaths:
+        for filepath in PhotoData[top].filepaths:
             json_tree["children"].append({"data" : {"title" : "{0} {1} {2}".format(os.path.basename(filepath), result[filepath].md5_match, result[filepath].signature_match), "icon":self.set_icon(filepath, result)}})
-        for dirpath in photos[top].dirpaths:
-            json_tree["children"].append(self.create_json_tree(photos, result, dirpath))
+        for dirpath in PhotoData[top].dirpaths:
+            json_tree["children"].append(self.create_json_tree(PhotoData, result, dirpath))
         return json_tree
         
 def main():
