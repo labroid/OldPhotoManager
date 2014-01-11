@@ -21,6 +21,20 @@ import socket
 import MD5sums
 import pickle_manager
 
+class NodeInfo(object):
+    def __init__(self):
+        self.isdir = False
+        self.size = 0
+        self.md5 = ''
+        self.signature = ''
+        self.dirpaths = []
+        self.filepaths = []      
+        self.mtime = -(sys.maxint - 1) #Set default time to very old
+        self.timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
+        self.got_tags = False
+        self.user_tags = ''
+        self.in_archive = False 
+
 class PhotoData(object):
     def __init__(self, path):
         logging.info("Creating photo data instance...")
@@ -38,19 +52,7 @@ class PhotoData(object):
     def __setitem__(self, key, value):
         self.node[key] = value 
         
-    class NodeInfo(object):
-        def __init__(self):
-            self.isdir = False
-            self.size = 0
-            self.md5 = ''
-            self.signature = ''
-            self.dirpaths = []
-            self.filepaths = []      
-            self.mtime = -(sys.maxint - 1) #Set default time to very old
-            self.timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
-            self.got_tags = False
-            self.user_tags = ''
-            self.in_archive = False 
+
 
     def update_collection(self):
         start_time = time.time()
@@ -83,7 +85,7 @@ class PhotoData(object):
                 filepaths = [os.path.normpath(os.path.join(dirpath, filename)) for filename in filenames]
                 if not dirpath in self.node:
                     logging.debug("New directory detected: {0}".format(dirpath))
-                    self.node[dirpath] = self.NodeInfo()
+                    self.node[dirpath] = NodeInfo()
                 self[dirpath].size = 0
                 self[dirpath].isdir = True
                 self[dirpath].signature = ''
@@ -100,7 +102,7 @@ class PhotoData(object):
                             self[filepath].got_tags = False
                     else:
                         logging.debug("New File detected: {0}".format(filepath))
-                        self.node[filepath] = self.NodeInfo()
+                        self.node[filepath] = NodeInfo()
                     self[filepath].in_archive = True
         logging.info("Done extracting tree.")
         return
