@@ -118,7 +118,7 @@ class PhotoData(object):
            Also reset the in_archive flag to False
         '''
         logging.info("Pruning old nodes from {0}".format(self.path))
-        for filepath in self.node.keys():
+        for filepath in self.node:
             if not self[filepath].in_archive:
                 logging.debug("Pruning {0}".format(filepath))
                 del self.node[filepath]
@@ -130,7 +130,7 @@ class PhotoData(object):
         PHOTO_FILES = [".jpg", ".png"]  #Use lower case as extensions will be cast to lower case for comparison.  TODO: make this configurable
         PROGRESS_COUNT = 500 #How often to report progress in units of files
         if filelist is None:
-            filelist = [x for x in self.node.keys() if not self.node[x].isdir]
+            filelist = [x for x in self.node.keys() if not self.node[x].isdir]  #TODO do we need keys() here?  I think it would be happy with default generator instance.  Check once testing is fixed.
         total_files = len(filelist)
         logging.info("Extracting tags for {0}.  File count = {1}".format(self.path, total_files))
         start_time = time.time()
@@ -210,7 +210,7 @@ class PhotoData(object):
     
     def list_zero_length_files(self):
         zero_length_names = []
-        for target in self.node.keys():
+        for target in self.node:  #Got rid of keys() in case this breaks....  TODO need a test here
             if self[target].size == 0:
                 zero_length_names.append(target)
         return(zero_length_names)
@@ -226,7 +226,7 @@ class PhotoData(object):
         stats = statistics()
         
         photo_set = set()
-        for archive_file in self.node.keys():
+        for archive_file in self.node:  #Got rid of keys() in case this breaks...  TODO need a test here
             if self[archive_file].isdir:
                 stats.dircount += 1
             else:
@@ -336,7 +336,7 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        return 2
 def main():
     photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
-    pickle_file = None
+    pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
     log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
     
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
@@ -344,6 +344,7 @@ def main():
     
     photos = get_photo_data(photo_dir, pickle_file)
     photos.print_tree()
+
     print "Done!"
 
 if __name__ == "__main__":
