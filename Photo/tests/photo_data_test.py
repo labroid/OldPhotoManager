@@ -4,8 +4,9 @@ import os
 import os.path
 import datetime
 import pytest
+import photo_functions
 
-class TestPhotos:
+class TestPhotos(object):
 
     def setup_class(self):
         self.photos = None
@@ -58,13 +59,15 @@ class TestPhotos:
         photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
         pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
         log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
-        pickle = pickle_manager.photo_pickler(pickle_file)
-        pickle.dumpPickle(self.photos)
-        #photos.print_tree()
+        pickle = pickle_manager.PhotoPickler(pickle_file)
+        pickle.dump_pickle(self.photos)
+        
+#Could also test other PhotoData methods, such as list zero files, print functions...but save those since PhotoData will change with the file storage method eventually used in the cloud
 
-    print "Done!"
+#Tests of PhotoFunctions
 
-if __name__ == "__main__":
-    sys.exit(main())
-    
+    def test_photo_function_instance(self):
+        results = photo_functions.PhotoFunctions(self.photos, compare_method = 'not self')
+        assert isinstance(self.results, photo_functions.PhotoFunctions)        
+
             
