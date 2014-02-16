@@ -16,6 +16,7 @@ import os
 import time
 import datetime
 import logging
+import simplejson as json
 import pyexiv2
 import socket
 import MD5sums
@@ -52,8 +53,6 @@ class PhotoData(object):
     def __setitem__(self, key, value):
         self.node[key] = value 
         
-
-
     def update_collection(self):
         start_time = time.time()
         if self.host != socket.gethostname():
@@ -71,7 +70,7 @@ class PhotoData(object):
         '''Descend photo tree and updates/adds/deletes node instances for each node and leaf of the tree.
            If leaves exist, only update them if the mtime or size have changed.
         '''
-        def _walk_error(self, walk_err):
+        def _walk_error(walk_err):
             print "Error", walk_err.errno, walk_err.strerror  #TODO Maybe some better error trapping here...
             raise
             
@@ -280,6 +279,11 @@ class PhotoData(object):
             print "{0}{1} {2} {3} {4}".format(" " * INDENT_WIDTH * indent_level, path, self[path].size, self[path].md5, self[path].signature)
         else:
             print "{0}{1} {2} {3} {4} {5} {6}".format(" " * INDENT_WIDTH * indent_level, path, self[path].size, self[path].md5, self[path].signature, self[path].user_tags, self[path].timestamp)
+            
+    def json_records(self):
+        for record in self.node.iterkeys():
+            print(json.dumps(self.node[record]))
+#            yield json.dumps(x.isdir, x.size, x.md5, x.signature, x.dirpaths, x.filepaths, x.mtime, x.timestamp, x.user_tags)
                 
 def get_photo_data(node_path, pickle_path, node_update = True):
     ''' Create instance of photo photo given one of three cases:
@@ -301,21 +305,21 @@ def get_photo_data(node_path, pickle_path, node_update = True):
         return(PhotoData(node_path))
     elif not node_path and pickle_path:  #Only pickle is given
         logging.info("Unpacking pickle at {0}".format(pickle_path))
-        pickle = pickle_manager.photo_pickler(pickle_path)
-        return(pickle.loadPickle())
+        pickle = pickle_manager.PhotoPickler(pickle_path)
+        return(pickle.load_pickle())
     else:  #Both paths are defined
-        pickle = pickle_manager.photo_pickler(pickle_path)
-        if pickle.pickleExists:
-            logging.info("Loading pickle at {0} for {1}".format(pickle.picklePath, node_path))
-            photos = pickle.loadPickle()
+        pickle = pickle_manager.PhotoPickler(pickle_path)
+        if pickle.pickle_exists:
+            logging.info("Loading pickle at {0} for {1}".format(pickle.pickle_path, node_path))
+            photos = pickle.load_pickle()
             if node_update:
                 photos.update_collection()
-                pickle.dumpPickle(photos)
+                pickle.dump_pickle(photos)
         else:
-            logging.info("Scanning photos {0}; will pickle to {1}".format(node_path, pickle.picklePath))
+            logging.info("Scanning photos {0}; will pickle to {1}".format(node_path, pickle.pickle_path))
             photos = PhotoData(node_path)
             photos.pickle = pickle_path
-            pickle.dumpPickle(photos)
+            pickle.dump_pickle(photos)
         return(photos) 
     
 #Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829

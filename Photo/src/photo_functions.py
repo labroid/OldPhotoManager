@@ -28,27 +28,48 @@ class PhotoFunctions(object):
             self.md5_match = []
             self.signature_match = []
     
-    def __init__(self, candidate, archive, candidate_path = None, archive_path = None):
+    def __init__(self, candidate, compare_method = None, archive = None,  candidate_path = None, archive_path = None):
         """Comment under init to see where it shows up"""
         logging.info('Setting up and initializing data structure...')
-        self.node = dict()
-        self.compare_method = self.set_comparison_type()
-        self.candidate = candidate
-        self.archive = archive
+        
+        if candidate is None:
+            logging.critical("Error - candidate PhotoData instance must be identified.  Got:{}".format(candidate))
+            sys.exit(-1)
+        else:
+            self.candidate = candidate
+            
+        if compare_method is None or compare_method.lower() not in ['all', 'not self', 'none']:
+            logging.critical("Error - compare_method must be specified, and must be one of ['all', 'not self', 'different tree'].  Got:{}".format(compare_method))
+            sys.exit(-1)
+        else:
+            self.compare_method = compare_method
+            
+        if archive is None:
+            self.archive = None
+            self.archive_path = None
+        else:
+            self.archive = archive
+            if archive_path is None:
+                self.archive_path = archive.path
+            else:
+                self.archive_path = archive_path
+       
         if candidate_path is None:
-            candidate_path = candidate.path
-        if archive_path is None:
-            archive_path = archive.path
-                          
+            self.candidate_path = candidate.path
+        else:
+            self.candidate_path = candidate_path
+            
+        self.node = dict()  
+#        self.compare_method = self.set_comparison_type()                  
         self.initialize_result_structure(self.candidate_path)
-        self.populate_tree_sizes(archive)
-        self.populate_tree_md5(archive)
-        #self.populate_tree_signatures(archive) #TODO Need to add this one!
-        if archive != candidate:
-            self.populate_tree_sizes(candidate)
-            self.populate_tree_md5(candidate)
+        self.populate_tree_sizes(candidate)
+        self.populate_tree_md5(candidate)
+        #self.populate_tree_signatures(candidate) #TODO Need to add this one!
+        if (archive != candidate) and archive is not None:
+            self.populate_tree_sizes(archive)
+            self.populate_tree_md5(archive)
             #self.populate_tree_signatures(archive) #TODO Need to add this one!
-        self.populate_duplicate_candidates(archive, candidate, self.result)
+        self.populate_duplicate_candidates()
         return ()
     
     def __getitem__(self, key):
@@ -58,7 +79,9 @@ class PhotoFunctions(object):
         self.node[key] = value 
     
     def initialize_result_structure(self, path):
-#This was originally recursive; I don't think there is a need for that since PhotoData objects have all nodes represented.  Rewritten to flat structure            
+#This was originally recursive; I don't think there is a need for that since PhotoData objects have all nodes represented.  Rewritten to flat structure
+#It was originally recursive in case one only wanted to descend a part of the tree, but it seems fast enough that that isn't necessary.  Also, the other functions
+#in this class don't necessarily respect the path variable, but only use the whole tree (check this!)          
 #         self.node[path] = self.NodeState()
 #         for dirpath in self.candidate[path].dirpaths:
 #             self.initialize_result_structure(dirpath)
@@ -72,13 +95,12 @@ class PhotoFunctions(object):
         #if candidate and archive are different, record all duplicates
         #if candidate and archive are same, and root same, record duplicates if not self
         #if candidate and archive are same, and root different, record duplicates only if in different tree
-        if self.candidate != self.archive:  #TODO would like to use enumerated type here, but not available in Python 2.7 I think
+        if self.candidate != self.archive:  #TODO should we use enumerated type here?  I don't like this but don't know if there is something more pythonic...
             return('all')
+        if self.archive is None or (self.candidate_path == self.archive_path):
+            return('not self')
         else:
-            if self.candidate_path == self.archive_path:
-                return('not self')
-            else:
-                return('different tree')
+            return('different tree')        
         logging.critical("Should never get here!")
         assert False, "Should never get here!  Check logs."
     
@@ -101,7 +123,7 @@ class PhotoFunctions(object):
         return cumulative_size      
     
     def populate_tree_md5(self, photos, top = None):
-        '''Recursively descends photo photo structure and computes aggregated md5
+        '''Recursively descends PhotoData structure and computes aggregated md5
         Errors if a file does not have md5 populated as this is risky for deleting files
         with un-computed MD5, or resulting in incorrect directory node hashes; computes md5 for directory structure
         '''
@@ -114,7 +136,7 @@ class PhotoFunctions(object):
         
         cumulative_md5_string = ''
         for dirpath in photos[top].dirpaths:
-            cumulative_md5_string += self.populate_tree_md5(photos, dirpath)  #TODO: It might be faster to use a join here - look up
+            cumulative_md5_string += self.populate_tree_md5(photos, dirpath)
         #TODO:  Need something here like if len(photos[top].,filepaths) == 0:  Or maybe directories with no files but only sub directories don't get reported or are highlighted in the UI
             #dont accumulate the md5, but pass it up the chain unchanged
             #this keeps directory nodes from adding md5 content to directories with no siblings
@@ -127,7 +149,8 @@ class PhotoFunctions(object):
     def build_hash_dict(self, path = None, hash_dict = None):
         '''Recursive function to build a hash dictionary with keys of file signatures and values 
            of 'list of files with that signature'
-           [This is recursive as opposed to linear because of the ability to descend an archive_path]
+           [This is recursive as opposed to linear because of the ability to descend an archive_path
+           without having to compute the whole tree]
         '''
         if hash_dict is None:  #First iteration of recursion
             logging.info("Building md5 hash dictionary for {0}".format(self.archive_path))
@@ -142,7 +165,7 @@ class PhotoFunctions(object):
         return hash_dict
     
     def populate_duplicate_candidates(self, path = None):
-        if path is None: #First iteration in recursion
+        if path is None: #First iteration in recursion  TODO:  This isn't right - if the user passes a path this will think it isn't first iteration!  Look at node_inclustion_check - that's correct.
             logging.info("Populating duplicate candidates...")
             path = self.candidate_path
             #Clear all duplicate states from result  TODO Do we really need to do this?  Is it not a fresh structure every time unless you call this function directly?  Maybe we hide it....
@@ -178,7 +201,7 @@ class PhotoFunctions(object):
             if self[filepath].md5_match or (os.path.basename(filepath) in ['.picasa.ini', 'Picasa.ini', 'picasa.ini', 'Thumbs.db']): #True if the md5_match list isn't empty OR These file types don't count. TODO Make this configurable
                 self[filepath].all_in_archive = True
                 self[filepath].none_in_archive = False
-                #all_in_archive = all_in_archive and True   #Shown here for completeness, commented out since it is a boolean identity
+                #all_in_archive = all_in_archive and True   #Shown here for completeness, commented out since it results in a boolean identity
                 none_in_archive = False
             else:
                 self[filepath].all_in_archive = False
@@ -191,6 +214,8 @@ class PhotoFunctions(object):
             logging.info("Done determining if node is duplicated.")
             
         return(all_in_archive, none_in_archive)
+    
+    #It would be nice if there were a function here to figure out if directories are duplicated - and name the duplicated directory.  Do we have some way of determining the 'master'? (e.g. shortest path, or some regular expression of what is a master?
       
     def print_tree(self, top = None, indent_level = 0):
         '''Print Photo collection using a tree structure'''
@@ -250,8 +275,8 @@ def main():
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = logfile, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     
-    candidate = pickle_manager.photo_pickler(candidate_pickle_file).loadPickle()
-    archive = pickle_manager.photo_pickler(archive_pickle_file).loadPickle()
+    candidate = pickle_manager.PhotoPickler(candidate_pickle_file).load_pickle()
+    archive = pickle_manager.PhotoPickler(archive_pickle_file).load_pickle()
     
     result = PhotoFunctions(candidate, archive, candidate_path = None, archive_path = None)
     
