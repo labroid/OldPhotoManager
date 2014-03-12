@@ -25,11 +25,73 @@ def main():
         unique_3_no_tags_no_date = os.path.normpath(os.path.join(os.getcwd(),'test_photos','archive','uniques','unique_3_no_tags_no_date.jpg'))
         file_no_thumbnail_no_tags = os.path.normpath(os.path.join(os.getcwd(),'test_photos','archive','uniques','file_no_thumbnail_no_tags'))
         
-        for trash in photos.json_records():
-            print trash
+#        for trash in photos.emit_records():
+#            print trash
         
-#         db = pymongo.MongoClient().photos
-#         db.
+        client = pymongo.MongoClient()
+        db = client.photo_database
+        collection = db.photo_archive
+        
+#Populate the database
+#        collection.insert(photos.emit_records())
+
+        print "Quick test to find non-null signatures"
+        cursor = collection.find( {"signature": {"$ne":""}} )
+        for line in cursor:
+            print line
+        
+        print "Do an aggregation pipeline"
+        cursor = collection.aggregate([
+                                              { "$project" : {
+                                                              "signature" : 1,
+                                                              "node" : 1
+                                                              }
+                                               },
+                                               { "$match" : {
+                                                            "signature" : { "$ne" : "" } 
+                                                            }
+                                               },
+                                               {"$group" : {
+                                                           "_id" : "$signature",
+                                                            "nodeSet" : { "$push" : "$node"},
+                                                           "nodeCount" : {"$sum" : 1}
+                                                           }
+                                                },
+                                                 {"$match" : {
+                                                              "nodeCount" : { "$gt" : 1}
+                                                              }
+                                                  }
+                                              ])
+
+        print type(cursor)
+        print type(cursor['result'])
+        for line in cursor['result']:
+            print line
+            
+        print "Now for mapreduce..."
+        
+        from bson.code import Code
+        mapper = Code("""
+                       function () {
+                           emit(this.signature, this.path);
+                       }
+                       """)
+        reducer = Code("""
+                function (key, values) {
+                    var answer = [];
+                    answer = values[0]
+                    return {"hello":answer};
+                    }
+                """)
+
+        result = db.photo_archive.map_reduce(mapper, reducer, "results", full_response=True)
+        print result
+        for doc in result:
+            print doc, result[doc]
+        print type(result)
+        print type(result['result'])
+        print "Done"
+        
 
 
 if __name__ == '__main__':

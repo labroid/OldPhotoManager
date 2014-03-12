@@ -16,7 +16,6 @@ import os
 import time
 import datetime
 import logging
-import simplejson as json
 import pyexiv2
 import socket
 import MD5sums
@@ -77,7 +76,7 @@ class PhotoData(object):
         logging.info("Updating tree...")
         if os.path.isfile(self.path):
             self[self.path].isDir = False
-            self[self.path].in_archive = True  #Check that this is all that needs to be done...
+            self[self.path].in_archive = True  #TODO Check that this is all that needs to be done...
         else:
             for dirpath, dirnames, filenames in os.walk(self.path, onerror = _walk_error):
                 dirpaths = [os.path.normpath(os.path.join(dirpath, dirname)) for dirname in dirnames]
@@ -93,15 +92,14 @@ class PhotoData(object):
                 self[dirpath].in_archive = True
                 
                 for filepath in filepaths:
-                    if filepath in self.node:
-                        file_stat = self._stat_node(filepath)
-                        if self[filepath].size != file_stat.st_size or self[filepath].mtime != file_stat.st_mtime:
-                            self[filepath].size = file_stat.st_size
-                            self[filepath].mtime = file_stat.st_mtime
-                            self[filepath].got_tags = False
-                    else:
+                    file_stat = self._stat_node(filepath)
+                    if filepath not in self.node:
                         logging.debug("New File detected: {0}".format(filepath))
                         self.node[filepath] = NodeInfo()
+                    if self[filepath].size != file_stat.st_size or self[filepath].mtime != file_stat.st_mtime:
+                        self[filepath].size = file_stat.st_size
+                        self[filepath].mtime = file_stat.st_mtime
+                        self[filepath].got_tags = False
                     self[filepath].in_archive = True
         logging.info("Done extracting tree.")
         return
@@ -280,10 +278,12 @@ class PhotoData(object):
         else:
             print "{0}{1} {2} {3} {4} {5} {6}".format(" " * INDENT_WIDTH * indent_level, path, self[path].size, self[path].md5, self[path].signature, self[path].user_tags, self[path].timestamp)
             
-    def json_records(self):
-        for record in self.node.iterkeys():
-            print(json.dumps(self.node[record]))
-#            yield json.dumps(x.isdir, x.size, x.md5, x.signature, x.dirpaths, x.filepaths, x.mtime, x.timestamp, x.user_tags)
+    def emit_records(self):
+        #emit collection information here, maybe under a path called "root" or something similar so it can be found
+        for photo in self.node.iterkeys():
+            record = self.node[photo].__dict__
+            record.update({"node":photo})
+            yield record
                 
 def get_photo_data(node_path, pickle_path, node_update = True):
     ''' Create instance of photo photo given one of three cases:
@@ -348,7 +348,7 @@ def main():
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     
-    photos = get_photo_data(photo_dir, pickle_file)
+    photos = get_photo_data(photo_dir, None)
     photos.print_tree()
 
     print "Done!"
