@@ -341,8 +341,9 @@ def get_photo_data(node_path, pickle_path, node_update = True):
 #        print >>sys.stderr, "for help use --help"
 #        return 2
 def main():
-    photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
-    pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
+#    photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
+#    pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
+    photo_dir = "C:/Users/scott_jackson/Pictures/Uploads"
     log_file = "C:\\Users\\scott_jackson\\Documents\\Programming\\PhotoManager\\lap_log.txt"
     
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"

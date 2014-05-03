@@ -1,0 +1,518 @@
+Photo Collection at 4DAA1001519:C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos pickled at None
+C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos 0  
+   C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive 0  
+      C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates 0  
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\.picasa.ini 0 ce0477d29e599c3fd59bbcaeb673104a 0d3fc7254a39c5dff6d7ac75d4a2fb43  1700-01-01 00:00:00
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\archive_duplicate_2.JPG 0 0beba7c9863402a5ee3a2447bf8c11c1 3519bc14824449a7f84a81f51aae48fd [u'test tag'] 2012-12-24 15:34:14
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\archive_thumb_appears_in_target_but_tags_different.JPG 0 f39f0983c34d6f18f459e364e1e9c932 84678e2899841f0de98885d3ad5a4453 [u'test tag'] 2012-12-24 15:43:30
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\duplicate_dir 0  
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\duplicate_dir\.picasa.ini 0 af776f04899e733403d282f85ddc885a b5bf55a8c2511527330ba63a4ac1b167  1700-01-01 00:00:00
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\duplicate_dir\dup_dir_pic_1.jpg 0 f4b8e36cd5a5ffd4d17c90122089136b 402dee5a570496c3b3addbc2de719233 [u'test tag sphere'] 2000-07-27 11:55:20
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates\duplicate_dir\dup_dir_pic_2.jpg 0 b08f9f5154599ed945b792a4c4659a8c 568aa7c79068155a3731d119f1168bf1 [u'test tag monorail'] 2000-07-27 19:31:52
+      C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates_in_same_tree 0  
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates_in_same_tree\.picasa.ini 0 af776f04899e733403d282f85ddc885a b5bf55a8c2511527330ba63a4ac1b167  1700-01-01 00:00:00
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates_in_same_tree\dup_dir_pic_1.jpg 0 f4b8e36cd5a5ffd4d17c90122089136b 402dee5a570496c3b3addbc2de719233 [u'test tag sphere'] 2000-07-27 11:55:20
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\duplicates_in_same_tree\dup_dir_pic_2.jpg 0 b08f9f5154599ed945b792a4c4659a8c 568aa7c79068155a3731d119f1168bf1 [u'test tag monorail'] 2000-07-27 19:31:52
+      C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\empty_dir 0  
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\empty_dir\empty_dir 0  
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\empty_dir\empty_dir\.picasa.ini 0 4b77b07375223dfcd3f5a2bf6093f409 ce48dae9424faf0764eb9191f1d54ee8  1700-01-01 00:00:00
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\empty_dir\empty_dir\archive_duplicate_1.JPG 0 5b631ed4e29da431f00dc1e89499a6e1 04782fb7b885dcf72630fd4b80c79f54 [u'test tag deer'] 2012-11-26 09:30:45
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\empty_dir\empty_dir\unique_4.JPG 0 1ce6d55e9684a69d61523e5bee0b845a 87ae914256f112d299a3b83f636f661c [u'test tag xmas tree'] 2012-12-23 13:26:50
+      C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\uniques 0  
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\uniques\file_no_thumbnail_no_tags 0 d88d35b8106931ba26c631c7bfe3ce48 d88d35b8106931ba26c631c7bfe3ce48  1700-01-01 00:00:00
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\uniques\unique_1_tags_date.JPG 0 ef1f34077aa82b009d7f58b6a84677fa 61cc239581f693059b496202e5e50b73 [u'test tag 1', u'test tag 2'] 2012-11-23 17:21:30
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\uniques\unique_2_no_tags_date.JPG 0 4af33261909039d78226f991e1e7b2a0 9c22021a8af1e437d18537d2872db9c0 None 2012-12-27 18:08:13
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\archive\uniques\unique_3_no_tags_no_date.jpg 0 ef7c9aefbbf7b9bf7012fcbee5ccf72f ef7c9aefbbf7b9bf7012fcbee5ccf72f None 1800-01-01 00:00:00
+   C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target 0  
+      C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates 0  
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates\target_duplicate_2.JPG 0 0beba7c9863402a5ee3a2447bf8c11c1 3519bc14824449a7f84a81f51aae48fd [u'test tag'] 2012-12-24 15:34:14
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates\target_same_as_unique_1_but_tags_different.JPG 0 ef1f34077aa82b009d7f58b6a84677fa 61cc239581f693059b496202e5e50b73 [u'test tag 1', u'test tag 2'] 2012-11-23 17:21:30
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates\duplicate_dir 0  
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates\duplicate_dir\.picasa.ini 0 af776f04899e733403d282f85ddc885a b5bf55a8c2511527330ba63a4ac1b167  1700-01-01 00:00:00
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates\duplicate_dir\dup_dir_pic_1.jpg 0 f4b8e36cd5a5ffd4d17c90122089136b 402dee5a570496c3b3addbc2de719233 [u'test tag sphere'] 2000-07-27 11:55:20
+            C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\duplicates\duplicate_dir\dup_dir_pic_2.jpg 0 b08f9f5154599ed945b792a4c4659a8c 568aa7c79068155a3731d119f1168bf1 [u'test tag monorail'] 2000-07-27 19:31:52
+      C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\uniques 0  
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\uniques\.picasa.ini 0 120d78546435d4ef12de5f7603105e04 15215781c1a9c855fc51a2f517647fd1  1700-01-01 00:00:00
+         C:\Users\scott_jackson\git\PhotoManager\Photo\tests\test_photos\target\uniques\unique_5_tags_date.jpg 0 f1fd5cb76926de565df25bbc32d07eea a5fe966a8525f76124992735f8095e5a [u'test tag'] 2000-07-27 20:12:50
+Done!
+         30109 function calls (29350 primitive calls) in 0.101 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.003    0.003    0.101    0.101 photo_data.py:11(<module>)
+        1    0.000    0.000    0.063    0.063 photo_data.py:345(main)
+        1    0.000    0.000    0.062    0.062 photo_data.py:290(get_photo_data)
+        1    0.000    0.000    0.062    0.062 photo_data.py:40(__init__)
+        1    0.000    0.000    0.060    0.060 photo_data.py:56(update_collection)
+        1    0.001    0.001    0.048    0.048 photo_data.py:130(_extract_populate_tags)
+       23    0.000    0.000    0.020    0.001 photo_data.py:164(_get_file_signature)
+       46    0.019    0.000    0.019    0.000 metadata.py:355(previews)
+      143    0.000    0.000    0.016    0.000 re.py:226(_compile)
+       21    0.000    0.000    0.016    0.001 sre_compile.py:496(compile)
+       26    0.000    0.000    0.016    0.001 re.py:188(compile)
+        1    0.002    0.002    0.015    0.015 __init__.py:99(<module>)
+       16    0.000    0.000    0.015    0.001 photo_data.py:193(_get_tags_from_file)
+       16    0.011    0.001    0.015    0.001 metadata.py:99(read)
+       15    0.000    0.000    0.013    0.001 photo_data.py:205(_thumbnail_MD5_sum)
+        1    0.000    0.000    0.012    0.012 photo_data.py:69(_update_tree)
+        1    0.002    0.002    0.010    0.010 __init__.py:58(<module>)
+       23    0.001    0.000    0.009    0.000 MD5sums.py:10(fileMD5sum)
+       21    0.000    0.000    0.009    0.000 sre_compile.py:481(_code)
+        1    0.001    0.001    0.008    0.008 metadata.py:29(<module>)
+       21    0.000    0.000    0.007    0.000 sre_parse.py:676(parse)
+   102/21    0.000    0.000    0.007    0.000 sre_parse.py:302(_parse_sub)
+   125/21    0.002    0.000    0.007    0.000 sre_parse.py:380(_parse)
+       90    0.000    0.000    0.006    0.000 sre_compile.py:179(_compile_charset)
+   210/21    0.001    0.000    0.006    0.000 sre_compile.py:33(_compile)
+       90    0.002    0.000    0.006    0.000 sre_compile.py:208(_optimize_charset)
+        1    0.001    0.001    0.005    0.005 decimal.py:116(<module>)
+      400    0.005    0.000    0.005    0.000 {method 'update' of '_hashlib.HASH' objects}
+       35    0.000    0.000    0.005    0.000 photo_data.py:26(__init__)
+       36    0.001    0.000    0.005    0.000 {built-in method strptime}
+        1    0.000    0.000    0.005    0.005 encoder.py:2(<module>)
+       44    0.000    0.000    0.004    0.000 __init__.py:1249(_log)
+        1    0.001    0.001    0.004    0.004 exif.py:29(<module>)
+        1    0.002    0.002    0.004    0.004 __init__.py:24(<module>)
+        2    0.002    0.001    0.004    0.002 sre_compile.py:302(_optimize_unicode)
+        1    0.001    0.001    0.004    0.004 utils.py:29(<module>)
+       35    0.000    0.000    0.003    0.000 __init__.py:1613(debug)
+       16    0.002    0.000    0.003    0.000 metadata.py:70(_instantiate_image)
+       51    0.001    0.000    0.003    0.000 _strptime.py:295(_strptime)
+       35    0.000    0.000    0.003    0.000 __init__.py:1127(debug)
+       21    0.000    0.000    0.003    0.000 sre_compile.py:362(_compile_info)
+        1    0.003    0.003    0.003    0.003 socket.py:45(<module>)
+       44    0.000    0.000    0.003    0.000 __init__.py:1270(handle)
+       44    0.000    0.000    0.003    0.000 __init__.py:1302(callHandlers)
+     1918    0.001    0.000    0.003    0.000 sre_parse.py:202(get)
+       44    0.000    0.000    0.003    0.000 __init__.py:736(handle)
+        1    0.001    0.001    0.002    0.002 pickle_manager.py:7(<module>)
+     2252    0.002    0.000    0.002    0.000 sre_parse.py:183(__next)
+       44    0.000    0.000    0.002    0.000 __init__.py:930(emit)
+       44    0.000    0.000    0.002    0.000 __init__.py:839(emit)
+        2    0.002    0.001    0.002    0.001 {_socket.gethostname}
+        1    0.001    0.001    0.002    0.002 threading.py:1(<module>)
+        1    0.000    0.000    0.002    0.002 fractions.py:4(<module>)
+       16    0.000    0.000    0.002    0.000 photo_data.py:180(_get_timestamp_from_tags)
+      386    0.002    0.000    0.002    0.000 {method 'read' of 'file' objects}
+        1    0.001    0.001    0.002    0.002 _strptime.py:12(<module>)
+    47/13    0.000    0.000    0.002    0.000 os.py:209(walk)
+        1    0.000    0.000    0.002    0.002 xmp.py:29(<module>)
+       30    0.002    0.000    0.002    0.000 {open}
+        1    0.000    0.000    0.002    0.002 xmp.py:59(XmpTag)
+        1    0.000    0.000    0.002    0.002 _strptime.py:263(compile)
+        1    0.000    0.000    0.002    0.002 decoder.py:2(<module>)
+        1    0.001    0.001    0.001    0.001 pickle.py:25(<module>)
+       49    0.001    0.000    0.001    0.000 {nt.stat}
+       29    0.000    0.000    0.001    0.000 metadata.py:196(__getitem__)
+        9    0.000    0.000    0.001    0.000 __init__.py:1605(info)
+        9    0.000    0.000    0.001    0.000 __init__.py:1139(info)
+        1    0.000    0.000    0.001    0.001 MD5sums.py:5(<module>)
+       44    0.000    0.000    0.001    0.000 __init__.py:828(flush)
+       44    0.000    0.000    0.001    0.000 __init__.py:1236(makeRecord)
+        1    0.000    0.000    0.001    0.001 _strptime.py:179(__init__)
+      546    0.001    0.000    0.001    0.000 {method 'setdefault' of 'dict' objects}
+       44    0.000    0.000    0.001    0.000 __init__.py:242(__init__)
+        1    0.001    0.001    0.001    0.001 collections.py:1(<module>)
+       16    0.000    0.000    0.001    0.000 photo_data.py:187(_get_user_tags_from_tags)
+        1    0.000    0.000    0.001    0.001 scanner.py:2(<module>)
+        1    0.000    0.000    0.001    0.001 iptc.py:29(<module>)
+       34    0.001    0.000    0.001    0.000 {nt._isdir}
+   275/94    0.001    0.000    0.001    0.000 sre_parse.py:141(getwidth)
+        1    0.000    0.000    0.001    0.001 iptc.py:62(IptcTag)
+       44    0.001    0.000    0.001    0.000 {method 'flush' of 'file' objects}
+       15    0.000    0.000    0.001    0.000 exif.py:188(_get_value)
+        1    0.001    0.001    0.001    0.001 hashlib.py:55(<module>)
+       15    0.000    0.000    0.001    0.000 exif.py:171(_compute_value)
+       44    0.000    0.000    0.001    0.000 __init__.py:713(format)
+        2    0.000    0.000    0.001    0.000 __init__.py:71(search_function)
+       44    0.000    0.000    0.001    0.000 __init__.py:451(format)
+       15    0.000    0.000    0.001    0.000 exif.py:257(_convert_to_python)
+      784    0.000    0.000    0.001    0.000 sre_parse.py:131(__getitem__)
+        2    0.000    0.000    0.001    0.000 {__import__}
+        1    0.000    0.000    0.001    0.001 utils.py:462(GPSCoordinate)
+       15    0.000    0.000    0.001    0.000 {time.strptime}
+       16    0.000    0.000    0.001    0.000 genericpath.py:15(exists)
+      117    0.000    0.000    0.001    0.000 re.py:134(match)
+       13    0.001    0.000    0.001    0.000 sre_compile.py:259(_mk_bitmap)
+       15    0.000    0.000    0.001    0.000 _strptime.py:466(_strptime_time)
+       12    0.001    0.000    0.001    0.000 {nt.listdir}
+      712    0.000    0.000    0.001    0.000 sre_parse.py:196(match)
+       53    0.000    0.000    0.001    0.000 _strptime.py:27(_getlang)
+       14    0.000    0.000    0.001    0.000 metadata.py:185(_get_xmp_tag)
+       16    0.001    0.000    0.001    0.000 metadata.py:142(exif_keys)
+        4    0.000    0.000    0.001    0.000 _strptime.py:240(pattern)
+       36    0.000    0.000    0.001    0.000 ntpath.py:398(normpath)
+        7    0.000    0.000    0.001    0.000 abc.py:86(__new__)
+       53    0.000    0.000    0.001    0.000 locale.py:514(getlocale)
+        1    0.000    0.000    0.000    0.000 decoder.py:24(_floatconstants)
+       17    0.000    0.000    0.000    0.000 genericpath.py:26(isfile)
+       15    0.000    0.000    0.000    0.000 metadata.py:163(_get_exif_tag)
+        1    0.000    0.000    0.000    0.000 compat.py:18(fromhex)
+        1    0.000    0.000    0.000    0.000 {method 'decode' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 numbers.py:6(<module>)
+        6    0.000    0.000    0.000    0.000 MD5sums.py:51(text_file_MD5_signature)
+     12/1    0.000    0.000    0.000    0.000 photo_data.py:262(print_tree)
+        1    0.000    0.000    0.000    0.000 collections.py:282(namedtuple)
+6440/6338    0.000    0.000    0.000    0.000 {len}
+     1114    0.000    0.000    0.000    0.000 {isinstance}
+       35    0.000    0.000    0.000    0.000 photo_data.py:276(_print_tree_line)
+       44    0.000    0.000    0.000    0.000 __init__.py:404(formatTime)
+        1    0.000    0.000    0.000    0.000 _strptime.py:50(__init__)
+        1    0.000    0.000    0.000    0.000 __init__.py:1489(basicConfig)
+       75    0.000    0.000    0.000    0.000 ntpath.py:189(splitext)
+       44    0.000    0.000    0.000    0.000 __init__.py:1215(findCaller)
+        1    0.000    0.000    0.000    0.000 scanner.py:4(_import_c_make_scanner)
+        1    0.000    0.000    0.000    0.000 __init__.py:885(__init__)
+       53    0.000    0.000    0.000    0.000 locale.py:415(_parse_localename)
+       75    0.000    0.000    0.000    0.000 genericpath.py:85(_splitext)
+        1    0.000    0.000    0.000    0.000 utils.py:170(Rational)
+       15    0.000    0.000    0.000    0.000 MD5sums.py:25(stringMD5sum)
+       10    0.000    0.000    0.000    0.000 compat.py:8(u)
+      171    0.000    0.000    0.000    0.000 {method 'match' of '_sre.SRE_Pattern' objects}
+     2419    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+       29    0.000    0.000    0.000    0.000 {method 'close' of 'file' objects}
+       88    0.000    0.000    0.000    0.000 __init__.py:693(acquire)
+       53    0.000    0.000    0.000    0.000 locale.py:347(normalize)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:8(<module>)
+       79    0.000    0.000    0.000    0.000 ntpath.py:63(join)
+        1    0.000    0.000    0.000    0.000 __init__.py:919(_open)
+       88    0.000    0.000    0.000    0.000 __init__.py:700(release)
+        1    0.000    0.000    0.000    0.000 warnings.py:45(filterwarnings)
+       84    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+       44    0.000    0.000    0.000    0.000 ntpath.py:196(basename)
+       91    0.000    0.000    0.000    0.000 threading.py:146(acquire)
+       14    0.000    0.000    0.000    0.000 xmp.py:208(_get_value)
+        6    0.000    0.000    0.000    0.000 _strptime.py:221(__seqToRE)
+    92/48    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 calendar.py:6(<module>)
+        1    0.000    0.000    0.000    0.000 heapq.py:31(<module>)
+       14    0.000    0.000    0.000    0.000 xmp.py:185(_compute_value)
+       14    0.000    0.000    0.000    0.000 xmp.py:119(_from_existing_tag)
+       44    0.000    0.000    0.000    0.000 ntpath.py:164(split)
+       91    0.000    0.000    0.000    0.000 threading.py:186(release)
+       51    0.000    0.000    0.000    0.000 sre_parse.py:217(isname)
+        5    0.000    0.000    0.000    0.000 abc.py:105(register)
+       52    0.000    0.000    0.000    0.000 {time.strftime}
+    20/11    0.000    0.000    0.000    0.000 {issubclass}
+       16    0.000    0.000    0.000    0.000 metadata.py:156(xmp_keys)
+       15    0.000    0.000    0.000    0.000 exif.py:113(_from_existing_tag)
+        1    0.000    0.000    0.000    0.000 _strptime.py:96(__calc_month)
+       73    0.000    0.000    0.000    0.000 sre_compile.py:355(_simple)
+      9/5    0.000    0.000    0.000    0.000 abc.py:148(__subclasscheck__)
+       15    0.000    0.000    0.000    0.000 {built-in method __new__ of type object at 0x1E227020}
+      277    0.000    0.000    0.000    0.000 sre_parse.py:139(append)
+      409    0.000    0.000    0.000    0.000 {getattr}
+       50    0.000    0.000    0.000    0.000 _strptime.py:236(<genexpr>)
+       38    0.000    0.000    0.000    0.000 {method 'strftime' of 'datetime.date' objects}
+      362    0.000    0.000    0.000    0.000 sre_parse.py:127(__len__)
+       48    0.000    0.000    0.000    0.000 abc.py:89(<genexpr>)
+        1    0.000    0.000    0.000    0.000 compat.py:2(<module>)
+        1    0.000    0.000    0.000    0.000 photo_data.py:117(_prune_old_nodes)
+       53    0.000    0.000    0.000    0.000 {_locale.setlocale}
+      568    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}
+       44    0.000    0.000    0.000    0.000 re.py:204(escape)
+       89    0.000    0.000    0.000    0.000 ntpath.py:42(normcase)
+       51    0.000    0.000    0.000    0.000 {method 'groupdict' of '_sre.SRE_Match' objects}
+       26    0.000    0.000    0.000    0.000 calendar.py:55(__getitem__)
+        1    0.000    0.000    0.000    0.000 _strptime.py:88(__calc_weekday)
+      501    0.000    0.000    0.000    0.000 photo_data.py:50(__getitem__)
+       70    0.000    0.000    0.000    0.000 sre_parse.py:73(opengroup)
+      214    0.000    0.000    0.000    0.000 sre_parse.py:91(__init__)
+        8    0.000    0.000    0.000    0.000 {method 'sub' of '_sre.SRE_Pattern' objects}
+       79    0.000    0.000    0.000    0.000 ntpath.py:55(isabs)
+       16    0.000    0.000    0.000    0.000 metadata.py:57(__init__)
+      435    0.000    0.000    0.000    0.000 {min}
+      301    0.000    0.000    0.000    0.000 {method 'replace' of 'str' objects}
+      159    0.000    0.000    0.000    0.000 ntpath.py:122(splitdrive)
+       15    0.000    0.000    0.000    0.000 {map}
+      225    0.000    0.000    0.000    0.000 {method 'rfind' of 'str' objects}
+       14    0.000    0.000    0.000    0.000 calendar.py:74(__getitem__)
+       44    0.000    0.000    0.000    0.000 {time.localtime}
+       23    0.000    0.000    0.000    0.000 sre_parse.py:226(_class_escape)
+       66    0.000    0.000    0.000    0.000 sre_parse.py:258(_escape)
+       44    0.000    0.000    0.000    0.000 __init__.py:153(getLevelName)
+       68    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {dir}
+       44    0.000    0.000    0.000    0.000 {method 'hexdigest' of '_hashlib.HASH' objects}
+       70    0.000    0.000    0.000    0.000 sre_parse.py:84(closegroup)
+      106    0.000    0.000    0.000    0.000 {max}
+       23    0.000    0.000    0.000    0.000 sre_parse.py:179(__init__)
+       44    0.000    0.000    0.000    0.000 __init__.py:1342(isEnabledFor)
+        6    0.000    0.000    0.000    0.000 decimal.py:515(__new__)
+        1    0.000    0.000    0.000    0.000 os.py:35(_get_exports_list)
+      271    0.000    0.000    0.000    0.000 sre_parse.py:211(isident)
+      104    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}
+        8    0.000    0.000    0.000    0.000 re.py:268(_subx)
+        1    0.000    0.000    0.000    0.000 _strptime.py:115(__calc_date_time)
+        3    0.000    0.000    0.000    0.000 decimal.py:3782(__init__)
+        1    0.000    0.000    0.000    0.000 threading.py:1088(__init__)
+       44    0.000    0.000    0.000    0.000 __init__.py:445(usesTime)
+       14    0.000    0.000    0.000    0.000 _weakrefset.py:58(__iter__)
+      183    0.000    0.000    0.000    0.000 threading.py:63(_note)
+       15    0.000    0.000    0.000    0.000 preview.py:62(data)
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:8(<module>)
+       45    0.000    0.000    0.000    0.000 {_hashlib.openssl_md5}
+        8    0.000    0.000    0.000    0.000 re.py:248(_compile_repl)
+       68    0.000    0.000    0.000    0.000 sre_compile.py:52(fixup)
+       16    0.000    0.000    0.000    0.000 xmp.py:191(<lambda>)
+      181    0.000    0.000    0.000    0.000 {method 'lower' of 'str' objects}
+       44    0.000    0.000    0.000    0.000 __init__.py:311(getMessage)
+       44    0.000    0.000    0.000    0.000 __init__.py:81(<lambda>)
+       21    0.000    0.000    0.000    0.000 {_sre.compile}
+       14    0.000    0.000    0.000    0.000 xmp.py:96(__init__)
+       44    0.000    0.000    0.000    0.000 {method 'write' of 'file' objects}
+       15    0.000    0.000    0.000    0.000 exif.py:90(__init__)
+      182    0.000    0.000    0.000    0.000 {hasattr}
+       27    0.000    0.000    0.000    0.000 _weakrefset.py:36(__init__)
+        1    0.000    0.000    0.000    0.000 threading.py:654(__init__)
+       16    0.000    0.000    0.000    0.000 xmp.py:247(_convert_to_python)
+        2    0.000    0.000    0.000    0.000 sre_parse.py:704(parse_template)
+      272    0.000    0.000    0.000    0.000 {thread.get_ident}
+       44    0.000    0.000    0.000    0.000 threading.py:1150(currentThread)
+        1    0.000    0.000    0.000    0.000 __init__.py:817(__init__)
+        1    0.000    0.000    0.000    0.000 ntpath.py:466(abspath)
+       88    0.000    0.000    0.000    0.000 __init__.py:598(filter)
+       42    0.000    0.000    0.000    0.000 sre_compile.py:475(isstring)
+      107    0.000    0.000    0.000    0.000 metadata.py:93(_image)
+       30    0.000    0.000    0.000    0.000 exif.py:129(type)
+        1    0.000    0.000    0.000    0.000 __init__.py:655(__init__)
+        1    0.000    0.000    0.000    0.000 socket.py:179(_socketobject)
+      110    0.000    0.000    0.000    0.000 {_sre.getlower}
+       28    0.000    0.000    0.000    0.000 xmp.py:142(type)
+       49    0.000    0.000    0.000    0.000 {time.time}
+       45    0.000    0.000    0.000    0.000 preview.py:37(__init__)
+        1    0.000    0.000    0.000    0.000 preview.py:29(<module>)
+       70    0.000    0.000    0.000    0.000 {method 'remove' of 'list' objects}
+       44    0.000    0.000    0.000    0.000 {method 'find' of 'str' objects}
+       47    0.000    0.000    0.000    0.000 {method 'acquire' of 'thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 decimal.py:506(Decimal)
+       44    0.000    0.000    0.000    0.000 __init__.py:1328(getEffectiveLevel)
+       17    0.000    0.000    0.000    0.000 stat.py:49(S_ISREG)
+        1    0.000    0.000    0.000    0.000 fractions.py:44(Fraction)
+       73    0.000    0.000    0.000    0.000 sre_parse.py:135(__setitem__)
+        6    0.000    0.000    0.000    0.000 {sorted}
+       45    0.000    0.000    0.000    0.000 {sys._getframe}
+        6    0.000    0.000    0.000    0.000 hashlib.py:94(__get_openssl_constructor)
+        2    0.000    0.000    0.000    0.000 threading.py:241(Condition)
+       44    0.000    0.000    0.000    0.000 threading.py:965(name)
+        4    0.000    0.000    0.000    0.000 {all}
+      135    0.000    0.000    0.000    0.000 sre_compile.py:25(_identityfunction)
+       32    0.000    0.000    0.000    0.000 {range}
+        1    0.000    0.000    0.000    0.000 threading.py:539(Event)
+       55    0.000    0.000    0.000    0.000 {method 'translate' of 'str' objects}
+        3    0.000    0.000    0.000    0.000 __init__.py:210(_acquireLock)
+        9    0.000    0.000    0.000    0.000 _weakrefset.py:26(__exit__)
+      103    0.000    0.000    0.000    0.000 {method 'toordinal' of 'datetime.date' objects}
+       28    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 threading.py:558(__init__)
+        1    0.000    0.000    0.000    0.000 pickle.py:827(Unpickler)
+        2    0.000    0.000    0.000    0.000 threading.py:259(__init__)
+        1    0.000    0.000    0.000    0.000 __future__.py:48(<module>)
+        1    0.000    0.000    0.000    0.000 calendar.py:47(_localized_month)
+       37    0.000    0.000    0.000    0.000 {method 'lstrip' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 numbers.py:34(Complex)
+      170    0.000    0.000    0.000    0.000 {ord}
+       14    0.000    0.000    0.000    0.000 _weakrefset.py:81(add)
+       21    0.000    0.000    0.000    0.000 sre_parse.py:68(__init__)
+        2    0.000    0.000    0.000    0.000 threading.py:113(RLock)
+       34    0.000    0.000    0.000    0.000 collections.py:323(<genexpr>)
+        1    0.000    0.000    0.000    0.000 metadata.py:46(ImageMetadata)
+        1    0.000    0.000    0.000    0.000 __init__.py:636(_addHandlerRef)
+        2    0.000    0.000    0.000    0.000 __init__.py:49(normalize_encoding)
+        6    0.000    0.000    0.000    0.000 {thread.allocate_lock}
+       37    0.000    0.000    0.000    0.000 abc.py:15(abstractmethod)
+        9    0.000    0.000    0.000    0.000 _weakrefset.py:20(__enter__)
+        1    0.000    0.000    0.000    0.000 threading.py:638(Thread)
+        1    0.000    0.000    0.000    0.000 pickle.py:171(Pickler)
+       46    0.000    0.000    0.000    0.000 {method 'release' of 'thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 numbers.py:295(Integral)
+        1    0.000    0.000    0.000    0.000 numbers.py:169(Real)
+        1    0.000    0.000    0.000    0.000 _strptime.py:160(__calc_timezone)
+        2    0.000    0.000    0.000    0.000 threading.py:131(__init__)
+        1    0.000    0.000    0.000    0.000 collections.py:26(OrderedDict)
+        1    0.000    0.000    0.000    0.000 __init__.py:684(createLock)
+       51    0.000    0.000    0.000    0.000 {method 'end' of '_sre.SRE_Match' objects}
+       82    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 decimal.py:3763(Context)
+        1    0.000    0.000    0.000    0.000 _strptime.py:103(__calc_am_pm)
+       27    0.000    0.000    0.000    0.000 decimal.py:3809(<genexpr>)
+       51    0.000    0.000    0.000    0.000 {method 'iterkeys' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 threading.py:573(set)
+       44    0.000    0.000    0.000    0.000 {nt.getpid}
+        3    0.000    0.000    0.000    0.000 __init__.py:219(_releaseLock)
+        1    0.000    0.000    0.000    0.000 exif.py:63(ExifTag)
+        5    0.000    0.000    0.000    0.000 fractions.py:280(_operator_fallbacks)
+        1    0.000    0.000    0.000    0.000 {nt._getfullpathname}
+       16    0.000    0.000    0.000    0.000 {method 'extend' of 'list' objects}
+        4    0.000    0.000    0.000    0.000 collections.py:349(<genexpr>)
+       27    0.000    0.000    0.000    0.000 decimal.py:3816(<genexpr>)
+        1    0.000    0.000    0.000    0.000 photo_data.py:39(PhotoData)
+       17    0.000    0.000    0.000    0.000 stat.py:24(S_IFMT)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:70(getregentry)
+        1    0.000    0.000    0.000    0.000 <string>:1(DecimalTuple)
+        1    0.000    0.000    0.000    0.000 decoder.py:302(__init__)
+        1    0.000    0.000    0.000    0.000 atexit.py:6(<module>)
+        1    0.000    0.000    0.000    0.000 keyword.py:11(<module>)
+        2    0.000    0.000    0.000    0.000 codecs.py:77(__new__)
+        1    0.000    0.000    0.000    0.000 __init__.py:1280(addHandler)
+       12    0.000    0.000    0.000    0.000 _weakrefset.py:68(__contains__)
+        4    0.000    0.000    0.000    0.000 collections.py:347(<genexpr>)
+       51    0.000    0.000    0.000    0.000 {method 'weekday' of 'datetime.date' objects}
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:36(getregentry)
+        1    0.000    0.000    0.000    0.000 __init__.py:1375(__init__)
+        1    0.000    0.000    0.000    0.000 calendar.py:66(_localized_day)
+        2    0.000    0.000    0.000    0.000 __init__.py:73(_make_version)
+        1    0.000    0.000    0.000    0.000 __init__.py:1109(__init__)
+       22    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 threading.py:399(notifyAll)
+        1    0.000    0.000    0.000    0.000 calendar.py:126(Calendar)
+        1    0.000    0.000    0.000    0.000 __init__.py:1094(Logger)
+        1    0.000    0.000    0.000    0.000 socket.py:235(_fileobject)
+        1    0.000    0.000    0.000    0.000 preview.py:31(Preview)
+        1    0.000    0.000    0.000    0.000 threading.py:422(_Semaphore)
+        1    0.000    0.000    0.000    0.000 {_struct.unpack}
+       33    0.000    0.000    0.000    0.000 {chr}
+       11    0.000    0.000    0.000    0.000 ntpath.py:210(islink)
+        1    0.000    0.000    0.000    0.000 weakref.py:47(__init__)
+        1    0.000    0.000    0.000    0.000 exif.py:477(ExifThumbnail)
+        3    0.000    0.000    0.000    0.000 __init__.py:182(_checkLevel)
+        9    0.000    0.000    0.000    0.000 _weakrefset.py:16(__init__)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:27(hex_decode)
+        6    0.000    0.000    0.000    0.000 threading.py:58(__init__)
+        1    0.000    0.000    0.000    0.000 {repr}
+        2    0.000    0.000    0.000    0.000 {method 'tolist' of 'array.array' objects}
+       15    0.000    0.000    0.000    0.000 {setattr}
+        1    0.000    0.000    0.000    0.000 __init__.py:646(Handler)
+       18    0.000    0.000    0.000    0.000 {method 'index' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 threading.py:372(notify)
+        1    0.000    0.000    0.000    0.000 encoder.py:8(_import_speedups)
+        9    0.000    0.000    0.000    0.000 _weakrefset.py:52(_commit_removals)
+        1    0.000    0.000    0.000    0.000 numbers.py:270(Rational)
+        1    0.000    0.000    0.000    0.000 utils.py:580(DateTimeFormatter)
+        1    0.000    0.000    0.000    0.000 encoder.py:119(__init__)
+        1    0.000    0.000    0.000    0.000 encoder.py:88(JSONEncoder)
+        1    0.000    0.000    0.000    0.000 collections.py:381(Counter)
+        1    0.000    0.000    0.000    0.000 utils.py:356(NotifyingList)
+        3    0.000    0.000    0.000    0.000 sre_parse.py:711(literal)
+        1    0.000    0.000    0.000    0.000 calendar.py:376(HTMLCalendar)
+        9    0.000    0.000    0.000    0.000 {method '__subclasses__' of 'type' objects}
+        9    0.000    0.000    0.000    0.000 {method '__subclasshook__' of 'object' objects}
+        1    0.000    0.000    0.000    0.000 calendar.py:132(__init__)
+        1    0.000    0.000    0.000    0.000 decoder.py:10(_import_c_scanstring)
+        7    0.000    0.000    0.000    0.000 __future__.py:75(__init__)
+        1    0.000    0.000    0.000    0.000 __init__.py:115(_import_OrderedDict)
+        1    0.000    0.000    0.000    0.000 calendar.py:259(TextCalendar)
+        1    0.000    0.000    0.000    0.000 __init__.py:1121(setLevel)
+        1    0.000    0.000    0.000    0.000 socket.py:167(_closedsocket)
+        1    0.000    0.000    0.000    0.000 UserDict.py:4(__init__)
+       30    0.000    0.000    0.000    0.000 {method 'isalnum' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 __init__.py:230(LogRecord)
+        1    0.000    0.000    0.000    0.000 threading.py:124(_RLock)
+        1    0.000    0.000    0.000    0.000 {binascii.a2b_hex}
+        1    0.000    0.000    0.000    0.000 threading.py:254(_Condition)
+        1    0.000    0.000    0.000    0.000 __init__.py:346(Formatter)
+        1    0.000    0.000    0.000    0.000 decoder.py:272(JSONDecoder)
+        2    0.000    0.000    0.000    0.000 __init__.py:390(__init__)
+        2    0.000    0.000    0.000    0.000 __init__.py:578(__init__)
+        1    0.000    0.000    0.000    0.000 threading.py:549(_Event)
+        1    0.000    0.000    0.000    0.000 threading.py:299(_is_owned)
+        1    0.000    0.000    0.000    0.000 __init__.py:1383(LoggerAdapter)
+        1    0.000    0.000    0.000    0.000 atexit.py:37(register)
+        1    0.000    0.000    0.000    0.000 __init__.py:881(FileHandler)
+       10    0.000    0.000    0.000    0.000 {method 'group' of '_sre.SRE_Match' objects}
+        1    0.000    0.000    0.000    0.000 _strptime.py:176(TimeRE)
+        5    0.000    0.000    0.000    0.000 _strptime.py:212(<genexpr>)
+        9    0.000    0.000    0.000    0.000 {method 'remove' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 photo_data.py:25(NodeInfo)
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:13(Codec)
+        2    0.000    0.000    0.000    0.000 {method 'setter' of 'property' objects}
+        1    0.000    0.000    0.000    0.000 __init__.py:573(Filterer)
+        1    0.000    0.000    0.000    0.000 utils.py:47(FixedOffset)
+        1    0.000    0.000    0.000    0.000 _strptime.py:31(LocaleTime)
+        1    0.000    0.000    0.000    0.000 iptc.py:42(IptcValueError)
+        1    0.000    0.000    0.000    0.000 pickle_manager.py:18(PhotoPickler)
+        2    0.000    0.000    0.000    0.000 {method 'insert' of 'list' objects}
+        4    0.000    0.000    0.000    0.000 {method '__contains__' of 'frozenset' objects}
+       13    0.000    0.000    0.000    0.000 sre_parse.py:206(tell)
+        1    0.000    0.000    0.000    0.000 numbers.py:13(Number)
+        1    0.000    0.000    0.000    0.000 scanner.py:18(JSONDecodeError)
+        1    0.000    0.000    0.000    0.000 __init__.py:945(PlaceHolder)
+        1    0.000    0.000    0.000    0.000 __init__.py:997(__init__)
+        1    0.000    0.000    0.000    0.000 threading.py:1086(_MainThread)
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:20(IncrementalEncoder)
+        1    0.000    0.000    0.000    0.000 calendar.py:28(IllegalWeekdayError)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:52(IncrementalEncoder)
+        1    0.000    0.000    0.000    0.000 threading.py:787(_set_ident)
+        1    0.000    0.000    0.000    0.000 threading.py:56(_Verbose)
+        6    0.000    0.000    0.000    0.000 {globals}
+        3    0.000    0.000    0.000    0.000 {method 'strip' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 {method 'keys' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {_hashlib.openssl_sha512}
+        1    0.000    0.000    0.000    0.000 xmp.py:40(XmpValueError)
+        1    0.000    0.000    0.000    0.000 __future__.py:74(_Feature)
+        1    0.000    0.000    0.000    0.000 __init__.py:992(Manager)
+        1    0.000    0.000    0.000    0.000 calendar.py:488(TimeEncoding)
+        1    0.000    0.000    0.000    0.000 calendar.py:536(LocaleHTMLCalendar)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:45(Codec)
+        1    0.000    0.000    0.000    0.000 calendar.py:501(LocaleTextCalendar)
+        2    0.000    0.000    0.000    0.000 calendar.py:71(__init__)
+        1    0.000    0.000    0.000    0.000 pickle.py:58(PickleError)
+        1    0.000    0.000    0.000    0.000 __init__.py:494(BufferingFormatter)
+        1    0.000    0.000    0.000    0.000 threading.py:1126(_DummyThread)
+        1    0.000    0.000    0.000    0.000 threading.py:1056(_Timer)
+        1    0.000    0.000    0.000    0.000 encoder.py:345(JSONEncoderForHTML)
+        1    0.000    0.000    0.000    0.000 exif.py:43(ExifValueError)
+        2    0.000    0.000    0.000    0.000 calendar.py:50(<lambda>)
+        1    0.000    0.000    0.000    0.000 __init__.py:810(StreamHandler)
+        1    0.000    0.000    0.000    0.000 decimal.py:3748(_ContextManager)
+        2    0.000    0.000    0.000    0.000 {method 'tostring' of 'array.array' objects}
+        1    0.000    0.000    0.000    0.000 <string>:1(<module>)
+        1    0.000    0.000    0.000    0.000 threading.py:514(_BoundedSemaphore)
+        1    0.000    0.000    0.000    0.000 __init__.py:1671(NullHandler)
+        1    0.000    0.000    0.000    0.000 pickle.py:69(UnpicklingError)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:57(IncrementalDecoder)
+        1    0.000    0.000    0.000    0.000 {_hashlib.openssl_sha1}
+        1    0.000    0.000    0.000    0.000 decimal.py:251(DivisionImpossible)
+        1    0.000    0.000    0.000    0.000 {_hashlib.openssl_sha224}
+        2    0.000    0.000    0.000    0.000 {unichr}
+        2    0.000    0.000    0.000    0.000 calendar.py:52(__init__)
+        1    0.000    0.000    0.000    0.000 utils.py:341(ListenerInterface)
+        3    0.000    0.000    0.000    0.000 {abs}
+        1    0.000    0.000    0.000    0.000 decimal.py:5676(__init__)
+        1    0.000    0.000    0.000    0.000 __init__.py:536(Filter)
+        1    0.000    0.000    0.000    0.000 decimal.py:360(Underflow)
+        1    0.000    0.000    0.000    0.000 pickle.py:1261(_EmptyClass)
+        1    0.000    0.000    0.000    0.000 decimal.py:299(Rounded)
+        1    0.000    0.000    0.000    0.000 decimal.py:5418(_WorkRep)
+        1    0.000    0.000    0.000    0.000 decimal.py:161(DecimalException)
+        1    0.000    0.000    0.000    0.000 decimal.py:5672(_Log10Memoize)
+        1    0.000    0.000    0.000    0.000 decimal.py:273(Inexact)
+        1    0.000    0.000    0.000    0.000 {_hashlib.openssl_sha256}
+        1    0.000    0.000    0.000    0.000 hex_codec.py:62(StreamWriter)
+        1    0.000    0.000    0.000    0.000 calendar.py:138(setfirstweekday)
+        1    0.000    0.000    0.000    0.000 decimal.py:196(InvalidOperation)
+        1    0.000    0.000    0.000    0.000 __init__.py:1369(RootLogger)
+        1    0.000    0.000    0.000    0.000 {sys.exit}
+        1    0.000    0.000    0.000    0.000 threading.py:1095(_set_daemon)
+        1    0.000    0.000    0.000    0.000 pickle.py:62(PicklingError)
+        1    0.000    0.000    0.000    0.000 decimal.py:311(Subnormal)
+        1    0.000    0.000    0.000    0.000 decimal.py:235(DivisionByZero)
+        1    0.000    0.000    0.000    0.000 {_hashlib.openssl_sha384}
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:24(IncrementalDecoder)
+        1    0.000    0.000    0.000    0.000 decimal.py:262(DivisionUndefined)
+        1    0.000    0.000    0.000    0.000 calendar.py:21(IllegalMonthError)
+        1    0.000    0.000    0.000    0.000 decimal.py:225(ConversionSyntax)
+        1    0.000    0.000    0.000    0.000 hex_codec.py:65(StreamReader)
+        1    0.000    0.000    0.000    0.000 pickle.py:82(_Stop)
+        1    0.000    0.000    0.000    0.000 decimal.py:184(Clamped)
+        1    0.000    0.000    0.000    0.000 __init__.py:754(setFormatter)
+        1    0.000    0.000    0.000    0.000 decimal.py:285(InvalidContext)
+        4    0.000    0.000    0.000    0.000 {method 'isdigit' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:28(StreamWriter)
+        1    0.000    0.000    0.000    0.000 decimal.py:322(Overflow)
+        1    0.000    0.000    0.000    0.000 {method '__getitem__' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 unicode_escape.py:31(StreamReader)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+
