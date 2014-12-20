@@ -10,6 +10,21 @@ Created on Oct 21, 2011
 
 @author: scott_jackson
 
+data model for node in database:
+
+    'path' : '',
+    'isdir' : False,
+    'size' : -1, 
+    'md5' : '',
+    'signature' : '',
+    'dirpaths' : [],
+    'filepaths' : [],
+    'mtime' : -(sys.maxint - 1), #Set default time to very old
+    'timestamp' : datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S'),
+    'got_tags' : False,
+    'user_tags' : '',
+    'in_archive' : False, 
+    'refresh_time' : -(sys.maxint - 1), #Set default time to very old
 '''
 #pylint: disable=line-too-long
 
@@ -17,16 +32,339 @@ import sys
 import os
 import time
 import datetime
+import re
 import logging
 import pyexiv2
 import socket
 import MD5sums
-import pickle_manager
+#import pickle_manager
+
+class photo_db(object):
+    def __init__(self, db, top):
+        self.db = db
+        self.top = os.path.normpath(top)
+        self.start_time = 0  #Persistent variable for method in this class because I don't know a better way
+        
+    def sync_db(self):
+        '''
+        Confirm/create new files
+            Traverse FS
+                stat node
+                if node in db
+                    if stats not same, mark for update
+                else
+                    add to db, mark for update
+        Update MD5 entries
+            Traverse db (really just get all members of the tree that are files)
+            if marked for update
+                update MD5 info
+            
+        Update file info
+            Do md5sum
+            if md5sum is in db
+                copy node info
+            else
+                compute node info
+            update timestamp
+            
+        Purge old node entries
+            Traverse db
+            if update time is older than confirm time, delete record
+                   
+        '''        
+#        self.mark_db('dirty')  #TODO save to db when starting to mark db as dirty, also marks time before update needed by prune
+        self.traverse_fs()
+        self.update_md5()
+        self.update_tags()
+#        self.prune_db()
+#        self.mark_db('clean') #If top wasn't root, then mark partial
+
+    def _mark_db(self, status):
+        #self.db.update({ 'last_fs_traverse' : { '$exists' : True } }, {'last_fs_traverse' : self.time_now() }, upsert = True) #Save time of last traverse
+        #mark clean, dirty, and save timestamp when update starts
+#      if status == 'dirty':
+#            self.db.update({'$exists' {'db_state' : True}}, {$set : {'db_state' : 'dirty', 'db_refresh_start' : self.time_now()}}, upsert = True)
+        pass
+    
+    def _walk_error(self, walk_err):
+        print "Error {}:{}".format(walk_err.errno, walk_err.strerror)  #TODO Maybe some better error trapping here...and do we need to encode strerror if it might contain unicode??
+        raise
+     
+    def traverse_fs(self, top = None):
+        logging.info("Traversing filesystem tree...")
+        if top is None:
+            top = self.top
+            
+        if os.path.isfile(top):
+            #Worry about this special case later - useful functions for file update are likely to pop out below as we develop
+            #isdir = False
+            #in_archive = True  #TODO Check that this is all that needs to be done...
+            #Do the file thing and return so I can get rid of the else clause below
+            pass
+        else:
+            for dirpath, dirnames, filenames in os.walk(top, onerror = self._walk_error):
+                dirpath = os.path.normpath(dirpath)
+                dirpaths = [os.path.normpath(os.path.join(dirpath, dirname)) for dirname in dirnames]
+                filepaths = [os.path.normpath(os.path.join(dirpath, filename)) for filename in filenames]
+                
+                db_dir = self.db.find_one({'path': dirpath}, {'path' : True, '_id' : False})
+                if  db_dir is None:
+                    logging.debug("New directory detected: {0}".format(repr(dirpath)))
+                    db_dir = dirpath
+                self.db.update({'path' : dirpath}, {
+                                'path' : dirpath,
+                                'isdir' : True, 
+                                'dirpaths' : dirpaths, 
+                                'filepaths' : filepaths, 
+                                'in_archive' : True,
+                                'refresh_time' : self.time_now()
+                                }, upsert = True)  #Replace existing record - wiping out previous sum data, if the record exists
+    
+                for filepath in filepaths:
+                    file_stat = self.stat_node(filepath)
+                    db_file = self.db.find_one({'path' : filepath}, {'_id' : 0})
+                    if db_file is None:
+                        logging.debug("New File detected: {0}".format(repr(filepath)))
+                        self.db.insert({
+                                        'path' : filepath, 
+                                        'isdir' : False,
+                                        'size': file_stat.st_size, 
+                                        'mtime' : file_stat.st_mtime, 
+                                        'in_archive' : True, 
+                                        'refresh_time' : self.time_now()
+                                        })
+                    else:
+                        if db_file['size'] != file_stat.st_size or db_file['mtime'] != file_stat.st_mtime:
+                            self.db.update({'path' : db_file['path']},{'$set' : {
+                                                                        'isdir' : False,
+                                                                        'size' : file_stat.st_size,
+                                                                        'md5' : '',
+                                                                        'signature' : '',
+                                                                        'mtime' : file_stat.st_mtime,
+                                                                        'timestamp' : datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S'),
+                                                                        'got_tags' : False,
+                                                                        'user_tags' : '',
+                                                                        'in_archive' : True,
+                                                                        'refresh_time' : self.time_now()
+                                                                        }})
+                        else:
+                            self.db.update({'path' : db_file['path']},{'$set': {'refresh_time' : self.time_now()}})
+        logging.info("Done traversing filesystem tree.")
+        return
+
+            
+    def time_now(self):
+        #Returns current time in seconds with microsecond resolution
+        t = datetime.datetime.now()
+        return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
+
+    def stat_node(self, nodepath):
+        try:
+            file_stat = os.stat(nodepath)
+        except:
+            logging.error("Can't stat file at {0}".format(repr(nodepath)))
+            sys.exit(1)
+        return(file_stat)
+    
+    def update_md5(self, top = None):
+        logging.info("Computing missing md5 sums...")
+        if top is None:
+            top = self.top
+#        pattern = u'^{}.*'.format(top)  #This should be the right pattern if I can get the backslashes right  Maybe build from os.path.join
+        dog = '^C:\\\\Users\\\\scott_jackson\\\\Pictures\\\\Uploads.*'  #TODO This should be from top, but I need to figure out how to get the 4 x \
+        pattern = unicode(dog)
+        regex = re.compile(pattern)
+        files = self.db.find(
+                             {
+                             '$and' : [
+                                        {
+                                         'path' : regex
+                                         }, 
+                                         {
+                                          'isdir' : False
+                                          },
+                                          {
+                                            '$or' : [
+                                                     {
+                                                      'md5' : {'$exists' : False}
+                                                     },
+                                                     {
+                                                      'md5' : ''
+                                                      }
+                                                     ]
+                                          }, 
+
+                                        ]
+                              },
+                             {
+                              '_id': False,
+                              'path':True
+                              },
+                              timeout = False
+                              )    
+        logging.info("Number of files for MD5 update: {}".format(files.count()))    
+        for n, path in enumerate(files, start = 1):
+            logging.info('Computing MD5 {} for: {}'.format(n, repr(path['path'])))
+            md5sum = MD5sums.fileMD5sum(path['path'])
+            self.db.update({'path' : path['path']}, {'$set':{'md5' : md5sum}})
+        logging.info("Done computing missing md5 sums...")
+            
+    def update_tags(self, top = None):
+        logging.info('Updating file tags...')
+        if top is None:
+            top = self.top
+#        pattern = u'^{}.*'.format(top)  #This should be the right pattern if I can get the backslashes right  Maybe build from os.path.join
+        dog = u'^C:\\\\Users\\\\scott_jackson\\\\Pictures\\\\Uploads.*'  #TODO This should be from top, but I need to figure out how to get the 4 x \
+        pattern = dog + '.png|' + dog + '.jpg'  #TODO This doesn't work for some reason...
+        regex = re.compile(pattern, re.IGNORECASE)
+        files = self.db.find(
+                              {
+#                               'path' : regex,   #TODO fix this - should only explore 'top'
+                               'isdir' : False, 
+                               '$or' : [
+                                        {'got_tags' : {'$exists' : False}},
+                                        {'got_tags' : False}
+                                        ]
+                               },
+                               {
+                                '_id': False, 'path':True
+                                }, 
+                             timeout = False)
+        total_files = files.count()
+        for file_count, photo_record in enumerate(files, start = 1):
+            self.monitor_tag_progress(total_files, file_count)
+            photopath = photo_record['path']
+            tags = self._get_tags_from_file(photopath)
+            if tags is None:
+                logging.warn("Bad tags in: {0}".format(repr(photopath)))
+                user_tags = ''
+                timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
+            else:
+                user_tags = self._get_user_tags_from_tags(tags)
+                timestamp = self._get_timestamp_from_tags(tags)  
+            signature = self._get_file_signature(tags, photopath)  #Get signature should now do the thumbnailMD5 and if not find another signature.
+            self.db.update({'path' : photopath}, {'$set' : {'user_tags' : user_tags, 'timestamp' : timestamp, 'signature' : signature, 'got_tags' : True}})
+        logging.info('Done updating file tags...')
+        return()
+    
+    def monitor_tag_progress(self, total_files, file_count):
+        PROGRESS_COUNT = 500 #How often to report progress in units of files
+        if file_count == 1: #First call; initialize
+            self.start_time = self.time_now()  #I am not sure this is persistent between calls; may have to be in parent
+            logging.info("Extracting tags for {0}.  File count = {1}".format(repr(self.top), total_files))
+        if not file_count % PROGRESS_COUNT:
+            elapsed_time = self.time_now() - self.start_time
+            total_time_projected = float(elapsed_time) / float(file_count) * total_files
+            time_remaining = float(elapsed_time) / float(file_count) * float(total_files - file_count)
+            logging.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(seconds=time_remaining)), str(datetime.timedelta(seconds=total_time_projected))))
+        if file_count == total_files:
+            elapsed_time = self.time_now() - self.start_time
+            logging.info("Tags extracted: {0}.  Elapsed time: {1:.0g} seconds or {2:.0g} ms per file = {3:.0g} for 100k files".format(file_count, elapsed_time, elapsed_time/total_files * 1000.0, elapsed_time/total_files * 100000.0/60.0))
+        return
+        
+    def _get_tags_from_file(self, filename):
+        try:
+            filepath = filename.decode(sys.getfilesystemencoding())
+            metadata = pyexiv2.ImageMetadata(filepath)
+            metadata.read()
+        except IOError as err:  #The file contains photo of an unknown image type or file missing or can't be opened
+            logging.warning("%s IOError, errno = %s, strerror = %s args = %s", repr(filename), str(err.errno), err.strerror, err.args)
+            return(None)
+        except:
+            logging.error("%s Unknown Error Trapped", repr(filename))
+            return(None)
+        return(metadata) 
+    
+    def _get_timestamp_from_tags(self,tags):
+        if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
+            timestamp = tags['Exif.Photo.DateTimeOriginal'].value
+        else:
+            timestamp = datetime.datetime.strptime('1800:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
+        return(timestamp)
+
+    def _get_user_tags_from_tags(self, tags):
+        if 'Xmp.dc.subject' in tags.xmp_keys:
+            return(tags['Xmp.dc.subject'].value)
+        else:
+            return(None)
+        
+    def _get_file_signature(self, tags, filepath):
+        TEXT_FILES = ['.ini', '.txt']  #file types to be compared ignoring CR/LF for OS portability.  Use lower case (extensions will be lowered before comparison)
+        if tags is not None and len(tags.previews) > 0:
+            #may need to normalize end-of-line between systems with mixed.replace('\r\n','\n').replace('\r','\n')
+            signature = MD5sums.stringMD5sum(tags.previews[0].data)
+        else:
+            if str.lower(os.path.splitext(filepath)[1].encode()) in TEXT_FILES:
+                signature = MD5sums.text_file_MD5_signature(filepath)
+            else:
+                signature = self.db.find_one({'path' : filepath})['md5']
+        return(signature)
+
+      #--------------------------------------------      
+    
+#Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
+#class Usage(Exception):
+#    def __init__(self, msg):
+#        self.msg = '''Usage:  get_photo_data [-p pickle_path] [-l log_file] photos_path'''
+#
+#def main(argv=None):
+#    if argv is None:
+#        argv = sys.argv
+#    try:
+#        try:
+#            opts, args = getopt.getopt(argv[1:], "h", ["help"])
+#        except getopt.error, msg:
+#             raise Usage(msg)
+#        # more code, unchanged
+#    except Usage, err:
+#        print >>sys.stderr, err.msg
+#        print >>sys.stderr, "for help use --help"
+#        return 2
+import re
+def main():
+    import pymongo
+#    photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
+#    pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
+    photo_dir = u"C:/Users/scott_jackson/Pictures/Uploads"
+    log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
+    db = pymongo.MongoClient().phototest.photo_archive2  #Set up filepaths to be unique keys?
+    db.ensure_index('path', unique = True)
+    
+    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+    logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
+    
+    start = time.time()
+    photos = photo_db(db, photo_dir)
+    photos.sync_db()
+    finished = time.time()-start
+    print "Elapsed time:",finished
+#    photos = get_photo_data(unicode(photo_dir), None)
+#    photos.print_tree()
+#    photos.print_flat()
+#    collection = pymongo.MongoClient().phototest.photo_archive
+#    collection.drop()
+#    collection.insert(photos.emit_records())
+#    pattern = re.compile('.*20140106 Istanbul.*')
+#    dog = db.find({'path': pattern})
+#    for line in dog:
+#       print line
+    print "Done!"
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+#------------------------------------------------
+#
+#
+#
+#------------------------------------------------
+
 
 class NodeInfo(object):
     def __init__(self):
+        self.path = ''
         self.isdir = False
-        self.size = 0
+        self.size = -1
         self.md5 = ''
         self.signature = ''
         self.dirpaths = []
@@ -62,7 +400,7 @@ class PhotoData(object):
             logging.warning('Collection not on this machine; data set will not be updated')
             return
         logging.info("Updating photo collection at {0}:{1}".format(self.host, repr(self.path)))
-        #Clear in_archive flag.  Flag will be set while crawling tree if file still there
+        #Clear in_archive flag.  Flag will be set while crawling tree if file still there  TODO This or the one below??!!
         for path in self.node.iterkeys():
             self.node[path].in_archive = False
         self._update_tree()
@@ -93,7 +431,7 @@ class PhotoData(object):
             print "Error {}:{}".format(walk_err.errno, walk_err.strerror)  #TODO Maybe some better error trapping here...and do we need to encode strerror if it might contain unicode??
             raise
             
-        logging.info("Updating tree...")
+        logging.info("Traversing filesystem tree...")
         if os.path.isfile(self.path):
             self[self.path].isDir = False
             self[self.path].in_archive = True  #TODO Check that this is all that needs to be done...
@@ -106,8 +444,6 @@ class PhotoData(object):
                 if not dirpath in self.node:
                     logging.debug("New directory detected: {0}".format(repr(dirpath)))
                     self.node[dirpath] = NodeInfo()
-                    if "142_0908" in dirpath:
-                        pass
                 self[dirpath].size = -1
                 self[dirpath].isdir = True
                 self[dirpath].signature = ''
@@ -126,7 +462,7 @@ class PhotoData(object):
                         self[filepath].mtime = file_stat.st_mtime
                         self[filepath].got_tags = False
                     self[filepath].in_archive = True
-        logging.info("Done extracting tree.")
+        logging.info("Done traversing filesystem tree.")
         return
     
     def _stat_node(self, nodepath):
@@ -143,21 +479,12 @@ class PhotoData(object):
         '''
         logging.info("Pruning old nodes from {0}".format(self.path))
         for filepath in self.node:
-            if "142_0908" in filepath:
-                pass
             if not self[filepath].in_archive:
                 logging.debug("Pruning {0}".format(repr(filepath)))
                 del self.node[filepath]
         return
 
-    def monitor_progress(self, total_files, start_time, file_count):
-        PROGRESS_COUNT = 500 #How often to report progress in units of files
-        if not file_count % PROGRESS_COUNT:
-            elapsed_time = time.time() - start_time
-            total_time_projected = float(elapsed_time) / float(file_count) * total_files
-            time_remaining = float(elapsed_time) / float(file_count) * float(total_files - file_count)
-            logging.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(seconds=time_remaining)), str(datetime.timedelta(seconds=total_time_projected))))
-        return 
+
     
     def _populate_md5sums(self):
         logging.info("Computing MD5 sums")
@@ -168,81 +495,13 @@ class PhotoData(object):
                 if not count % 100:
                     logging.info("MD5 Sums:  {} of {} complete".format(count, total_files))
 
-    def _extract_populate_tags(self):
-        PHOTO_FILES = [".jpg", ".png"]  #Use lower case as extensions will be cast to lower case for comparison.  TODO: make this configurable
-        filelist = [x for x in self.node.keys() if not self.node[x].isdir and not self.node[x].got_tags]  #TODO do we need keys() here?  I think it would be happy with default generator instance.  Check once testing is fixed.
-        total_files = len(filelist)
-        logging.info("Extracting tags for {0}.  File count = {1}".format(repr(self.path), total_files))
-        start_time = time.time()
-        tag_extract_count = 0
-        for file_count, photo_file in enumerate(filelist, start = 1):
-            self.monitor_progress(total_files, start_time, file_count)
-            tag_extract_count += 1
-            ext = os.path.splitext(photo_file)[1].encode().lower()
-            if ext in PHOTO_FILES:
-                tags = self._get_tags_from_file(photo_file)
-                if tags is None:
-                    logging.warn("Bad tags in: {0}".format(repr(photo_file)))
-                else:
-                    self[photo_file].user_tags = self._get_user_tags_from_tags(tags)
-                    self[photo_file].timestamp = self._get_timestamp_from_tags(tags)  
-            else:
-                tags = None   
-            self[photo_file].signature = self._get_file_signature(tags, photo_file)  #Get signature should now do the thumbnailMD5 and if not find another signature.
-            self[photo_file].got_tags = True
-            self.dataset_changed = True 
-        elapsed_time = time.time() - start_time
-        logging.info("Tags extracted.  {0} Updated. Elapsed time: {1:.0g} seconds or {2:.0g} ms per file = {3:.0g} for 100k files".format(tag_extract_count, elapsed_time, elapsed_time/total_files * 1000.0, elapsed_time/total_files * 100000.0/60.0))
-        return(self.dataset_changed)
-        
-    def _get_file_signature(self, tags, filepath):
-    #    LENGTH_LIMIT = 1048576  #Max length for a non-PHOTO_FILES, otherwise a truncated MD5 is computed
-        TEXT_FILES = ['.ini', '.txt']  #file types to be compared ignoring CR/LF for OS portability.  Use lower case (extensions will be lowered before comparison)
-        if tags is not None and len(tags.previews) > 0:
-            signature = self._thumbnail_MD5_sum(tags)
-        else:
-            if str.lower(os.path.splitext(filepath)[1].encode()) in TEXT_FILES:
-                signature = MD5sums.text_file_MD5_signature(filepath)
-            else:
-    #            if PhotoData[filepath].size < LENGTH_LIMIT:
-    #                signature = MD5sums.fileMD5sum(filepath)
-    #            else:
-    #                signature = MD5sums.truncatedMD5sum(filepath, LENGTH_LIMIT)
-                signature = self[filepath].md5
-        return(signature)
-
-    def _get_timestamp_from_tags(self,tags):
-        if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
-            timestamp = tags['Exif.Photo.DateTimeOriginal'].value
-        else:
-            timestamp = datetime.datetime.strptime('1800:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
-        return(timestamp)
-
-    def _get_user_tags_from_tags(self, tags):
-        if 'Xmp.dc.subject' in tags.xmp_keys:
-            return(tags['Xmp.dc.subject'].value)
-        else:
-            return(None)
-
-    def _get_tags_from_file(self, filename):
-        try:
-            filepath = filename.decode(sys.getfilesystemencoding())
-            metadata = pyexiv2.ImageMetadata(filepath)
-            metadata.read()
-        except IOError as err:  #The file contains photo of an unknown image type or file missing or can't be opened
-            logging.warning("%s IOError, errno = %s, strerror = %s args = %s", repr(filename), str(err.errno), err.strerror, err.args)
-            return(None)
-        except:
-            logging.error("%s Unknown Error Trapped", repr(filename))
-            return(None)
-        return(metadata)
     
-    def _thumbnail_MD5_sum(self, tags):
-        if len(tags.previews) > 0:
-            temp = MD5sums.stringMD5sum(tags.previews[0].data)
-        else:
-            temp = MD5sums.stringMD5sum("0")
-        return(temp)
+        
+
+
+
+
+
     
     def list_zero_length_files(self):
         zero_length_names = []
@@ -366,47 +625,5 @@ def get_photo_data(node_path, pickle_path, node_update = True):
             photos = PhotoData(node_path)
             photos.pickle = pickle_path
             pickle.dump_pickle(photos)
-        return(photos) 
+        return(photos)
     
-#Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
-#class Usage(Exception):
-#    def __init__(self, msg):
-#        self.msg = '''Usage:  get_photo_data [-p pickle_path] [-l log_file] photos_path'''
-#
-#def main(argv=None):
-#    if argv is None:
-#        argv = sys.argv
-#    try:
-#        try:
-#            opts, args = getopt.getopt(argv[1:], "h", ["help"])
-#        except getopt.error, msg:
-#             raise Usage(msg)
-#        # more code, unchanged
-#    except Usage, err:
-#        print >>sys.stderr, err.msg
-#        print >>sys.stderr, "for help use --help"
-#        return 2
-
-def main():
-    import pymongo
-#    photo_dir = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos"
-#    pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
-    photo_dir = "C:/Users/scott_jackson/Pictures/Uploads"
-    log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
-    
-    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
-    logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
-    
-    photos = get_photo_data(unicode(photo_dir), None)
-#    photos.print_tree()
-#    photos.print_flat()
-#    print "Putting it in Mongodb"
-    collection = pymongo.MongoClient().phototest.photo_archive
-    for rec in photos.emit_records():
-        print collection.insert(rec)
-
-    print "Done!"
-
-if __name__ == "__main__":
-    sys.exit(main())
-

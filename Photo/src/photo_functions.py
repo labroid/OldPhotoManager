@@ -28,15 +28,15 @@ class PhotoFunctions(object):
             self.md5_match = []
             self.signature_match = []
     
-    def __init__(self, candidate, compare_method = None, archive = None,  candidate_path = None, archive_path = None):
+    def __init__(self, db_candidate, compare_method = None, db_archive = None,  candidate_path = None, archive_path = None):
         """Comment under init to see where it shows up"""
         logging.info('Setting up and initializing data structure...')
         
-        if candidate is None:
-            logging.critical("Error - candidate PhotoData instance must be identified.  Got:{}".format(candidate))
+        if db_candidate is None:
+            logging.critical("Error - db_candidate PhotoData instance must be identified.  Got:{}".format(db_candidate))
             sys.exit(-1)
         else:
-            self.candidate = candidate
+            self.db_candidate = db_candidate
             
         if compare_method is None or compare_method.lower() not in ['all', 'not self', 'none']:
             logging.critical("Error - compare_method must be specified, and must be one of ['all', 'not self', 'different tree'].  Got:{}".format(compare_method))
@@ -44,31 +44,31 @@ class PhotoFunctions(object):
         else:
             self.compare_method = compare_method
             
-        if archive is None:
-            self.archive = None
+        if db_archive is None:
+            self.db_archive = None
             self.archive_path = None
         else:
-            self.archive = archive
+            self.db_archive = db_archive
             if archive_path is None:
-                self.archive_path = archive.path
+                self.archive_path = db_archive.path
             else:
                 self.archive_path = archive_path
        
         if candidate_path is None:
-            self.candidate_path = candidate.path
+            self.candidate_path = db_candidate.path
         else:
             self.candidate_path = candidate_path
             
         self.node = dict()  
 #        self.compare_method = self.set_comparison_type()                  
         self.initialize_result_structure(self.candidate_path)
-        self.populate_tree_sizes(candidate)
-        self.populate_tree_md5(candidate)
-        #self.populate_tree_signatures(candidate) #TODO Need to add this one!
-        if (archive != candidate) and archive is not None:
-            self.populate_tree_sizes(archive)
-            self.populate_tree_md5(archive)
-            #self.populate_tree_signatures(archive) #TODO Need to add this one!
+        self.populate_tree_sizes(db_candidate)
+        self.populate_tree_md5(db_candidate)
+        #self.populate_tree_signatures(db_candidate) #TODO Need to add this one!
+        if (db_archive != db_candidate) and db_archive is not None:
+            self.populate_tree_sizes(db_archive)
+            self.populate_tree_md5(db_archive)
+            #self.populate_tree_signatures(db_archive) #TODO Need to add this one!
         self.populate_duplicate_candidates()
         return ()
     
@@ -83,21 +83,21 @@ class PhotoFunctions(object):
 #It was originally recursive in case one only wanted to descend a part of the tree, but it seems fast enough that that isn't necessary.  Also, the other functions
 #in this class don't necessarily respect the path variable, but only use the whole tree (check this!)          
 #         self.node[path] = self.NodeState()
-#         for dirpath in self.candidate[path].dirpaths:
+#         for dirpath in self.db_candidate[path].dirpaths:
 #             self.initialize_result_structure(dirpath)
-#         for filepath in self.candidate[path].filepaths:
+#         for filepath in self.db_candidate[path].filepaths:
 #             self.node[filepath] = self.NodeState()
-        for path in self.candidate.node:
+        for path in self.db_candidate.node:
             self.node[path] = self.NodeState()
         return()
             
     def set_comparison_type(self):
-        #if candidate and archive are different, record all duplicates
-        #if candidate and archive are same, and root same, record duplicates if not self
-        #if candidate and archive are same, and root different, record duplicates only if in different tree
-        if self.candidate != self.archive:  #TODO should we use enumerated type here?  I don't like this but don't know if there is something more pythonic...
+        #if db_candidate and db_archive are different, record all duplicates
+        #if db_candidate and db_archive are same, and root same, record duplicates if not self
+        #if db_candidate and db_archive are same, and root different, record duplicates only if in different tree
+        if self.db_candidate != self.db_archive:  #TODO should we use enumerated type here?  I don't like this but don't know if there is something more pythonic...
             return('all')
-        if self.archive is None or (self.candidate_path == self.archive_path):
+        if self.db_archive is None or (self.candidate_path == self.archive_path):
             return('not self')
         else:
             return('different tree')        
@@ -158,10 +158,10 @@ class PhotoFunctions(object):
                 path = self.archive_path
             hash_dict = collections.defaultdict(list)
             
-        for dirpath in self.archive[path].dirpaths:
+        for dirpath in self.db_archive[path].dirpaths:
             self.build_hash_dict(dirpath, hash_dict)
-        for filepath in [self.archive[path].filepaths, path]:
-            hash_dict[self.archive[filepath].md5].append(filepath)
+        for filepath in [self.db_archive[path].filepaths, path]:
+            hash_dict[self.db_archive[filepath].md5].append(filepath)
         return hash_dict
     
     def populate_duplicate_candidates(self, path = None):
@@ -222,7 +222,7 @@ class PhotoFunctions(object):
         if top is None:
             top = self.candidate_path
         if indent_level == 0:  #Used to detect first call of recursion
-            print "Photo Collection at {0}:{1}".format(self.candidate.host, self.candidate_path)    
+            print "Photo Collection at {0}:{1}".format(self.db_candidate.host, self.candidate_path)    
         self._print_tree_line(top, indent_level)
         indent_level += 1
         for filepath in self[top].filepaths:
@@ -239,7 +239,7 @@ class PhotoFunctions(object):
 #             print "Photo Collection at {0}:{1} pickled at {2}".format(PhotoData.host, PhotoData.path, PhotoData.pickle)    
 #         self._print_tree_line(PhotoData, result, top, indent_level)
 #         if result[top].all_in_archive and PhotoData[top].isdir:
-#             return  #Stop descending as soon as you find a directory that is in the archive from there down...
+#             return  #Stop descending as soon as you find a directory that is in the db_archive from there down...
 #         indent_level += 1
 #         for filepath in PhotoData[top].filepaths:
 #             self._print_tree_line(PhotoData, result, filepath, indent_level)
@@ -286,7 +286,7 @@ def main():
         print row, "|", candidate[row].size, "|", candidate[row].md5, "|", result[row].all_in_archive, "|", result[row].none_in_archive, "|", result[row].md5_match, "|", result[row].signature_match
 
     print "****************************"
-#    print_top_level_duplicates_tree(candidate, result)
+#    print_top_level_duplicates_tree(db_candidate, result)
     result.print_tree(candidate, result)
     
 if __name__ == "__main__":
