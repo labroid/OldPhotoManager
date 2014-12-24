@@ -39,13 +39,17 @@ import socket
 import MD5sums
 #import pickle_manager
 
-class photo_db(object):
-    def __init__(self, db, top):
+class PhotoDb(object):
+    def __init__(self, db = None, top = None):
+        if db is None:
+            print "Error - must define database"
         self.db = db
+        if top is None:
+            print "Error - must define top node"
         self.top = os.path.normpath(top)
         self.start_time = 0  #Persistent variable for method in this class because I don't know a better way
         
-    def sync_db(self):
+    def sync_db(self, top = None):
         '''
         Confirm/create new files
             Traverse FS
@@ -73,10 +77,10 @@ class photo_db(object):
                    
         '''        
 #        self.mark_db('dirty')  #TODO save to db when starting to mark db as dirty, also marks time before update needed by prune
-        self.traverse_fs()
-        self.update_md5()
-        self.update_tags()
-#        self.prune_db()
+        self.traverse_fs(top)
+        self.update_md5(top)
+        self.update_tags(top)
+#        self.prune_db(top)
 #        self.mark_db('clean') #If top wasn't root, then mark partial
 
     def _mark_db(self, status):
@@ -90,68 +94,76 @@ class photo_db(object):
         print "Error {}:{}".format(walk_err.errno, walk_err.strerror)  #TODO Maybe some better error trapping here...and do we need to encode strerror if it might contain unicode??
         raise
      
+    def update_file_record(self, filepath):
+        file_stat = self.stat_node(filepath)
+        db_file = self.db.find_one({'path':filepath}, {'_id':0})
+        if db_file is None:
+            logging.debug("New File detected: {0}".format(repr(filepath)))
+            self.db.insert(
+                           {
+                            'path':filepath, 
+                            'isdir':False, 
+                            'size':file_stat.st_size, 
+                            'mtime':file_stat.st_mtime, 
+                            'in_archive':True, 
+                            'refresh_time':self.time_now()
+                            }
+                           )
+        elif db_file['size'] != file_stat.st_size or db_file['mtime'] != file_stat.st_mtime:
+            self.db.update(
+                           {'path':db_file['path']}, 
+                           {
+                            '$set':{
+                                    'isdir':False, 
+                                    'size':file_stat.st_size, 
+                                    'md5':'', 
+                                    'signature':'', 
+                                    'mtime':file_stat.st_mtime, 
+                                    'timestamp':datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S'), 
+                                    'got_tags':False, 'user_tags':'', 
+                                    'in_archive':True, 'refresh_time':self.time_now()
+                                    }
+                            }
+                           )
+        else:
+            self.db.update(
+                           { 'path' : db_file[ 'path' ] }, 
+                           { '$set' : { 'refresh_time' : self.time_now() }}
+                           )
+
+    def update_dir_record(self, dirpath, dirpaths, filepaths):
+        db_dir = self.db.find_one({'path':dirpath}, {'path':True, '_id':False})
+        if db_dir is None:
+            logging.debug("New directory detected: {0}".format(repr(dirpath)))
+            db_dir = dirpath
+        self.db.update(
+                       {'path':dirpath}, 
+                       {
+                        'path':dirpath, 
+                        'isdir':True, 
+                        'dirpaths':dirpaths, 
+                        'filepaths':filepaths, 
+                        'in_archive':True, 
+                        'refresh_time':self.time_now()
+                        }, 
+                       upsert=True) #Replace existing record - TODO wipe out previous sum data, if the record exists
+
     def traverse_fs(self, top = None):
-        logging.info("Traversing filesystem tree...")
         if top is None:
             top = self.top
-            
+        logging.info("Traversing filesystem tree starting at {}...".format(top))
         if os.path.isfile(top):
-            #Worry about this special case later - useful functions for file update are likely to pop out below as we develop
-            #isdir = False
-            #in_archive = True  #TODO Check that this is all that needs to be done...
-            #Do the file thing and return so I can get rid of the else clause below
-            pass
+            self.update_file_record(top)
         else:
             for dirpath, dirnames, filenames in os.walk(top, onerror = self._walk_error):
                 dirpath = os.path.normpath(dirpath)
                 dirpaths = [os.path.normpath(os.path.join(dirpath, dirname)) for dirname in dirnames]
                 filepaths = [os.path.normpath(os.path.join(dirpath, filename)) for filename in filenames]
-                
-                db_dir = self.db.find_one({'path': dirpath}, {'path' : True, '_id' : False})
-                if  db_dir is None:
-                    logging.debug("New directory detected: {0}".format(repr(dirpath)))
-                    db_dir = dirpath
-                self.db.update({'path' : dirpath}, {
-                                'path' : dirpath,
-                                'isdir' : True, 
-                                'dirpaths' : dirpaths, 
-                                'filepaths' : filepaths, 
-                                'in_archive' : True,
-                                'refresh_time' : self.time_now()
-                                }, upsert = True)  #Replace existing record - wiping out previous sum data, if the record exists
-    
+                self.update_dir_record(dirpath, dirpaths, filepaths)
                 for filepath in filepaths:
-                    file_stat = self.stat_node(filepath)
-                    db_file = self.db.find_one({'path' : filepath}, {'_id' : 0})
-                    if db_file is None:
-                        logging.debug("New File detected: {0}".format(repr(filepath)))
-                        self.db.insert({
-                                        'path' : filepath, 
-                                        'isdir' : False,
-                                        'size': file_stat.st_size, 
-                                        'mtime' : file_stat.st_mtime, 
-                                        'in_archive' : True, 
-                                        'refresh_time' : self.time_now()
-                                        })
-                    else:
-                        if db_file['size'] != file_stat.st_size or db_file['mtime'] != file_stat.st_mtime:
-                            self.db.update({'path' : db_file['path']},{'$set' : {
-                                                                        'isdir' : False,
-                                                                        'size' : file_stat.st_size,
-                                                                        'md5' : '',
-                                                                        'signature' : '',
-                                                                        'mtime' : file_stat.st_mtime,
-                                                                        'timestamp' : datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S'),
-                                                                        'got_tags' : False,
-                                                                        'user_tags' : '',
-                                                                        'in_archive' : True,
-                                                                        'refresh_time' : self.time_now()
-                                                                        }})
-                        else:
-                            self.db.update({'path' : db_file['path']},{'$set': {'refresh_time' : self.time_now()}})
+                    self.update_file_record(filepath)
         logging.info("Done traversing filesystem tree.")
         return
-
             
     def time_now(self):
         #Returns current time in seconds with microsecond resolution
@@ -170,9 +182,8 @@ class photo_db(object):
         logging.info("Computing missing md5 sums...")
         if top is None:
             top = self.top
-#        pattern = u'^{}.*'.format(top)  #This should be the right pattern if I can get the backslashes right  Maybe build from os.path.join
-        dog = '^C:\\\\Users\\\\scott_jackson\\\\Pictures\\\\Uploads.*'  #TODO This should be from top, but I need to figure out how to get the 4 x \
-        pattern = unicode(dog)
+        pattern = '^' + re.sub(r'\\', r'\\\\', top) + '.*'
+        pattern = unicode(pattern)
         regex = re.compile(pattern)
         files = self.db.find(
                              {
@@ -208,7 +219,7 @@ class photo_db(object):
             md5sum = MD5sums.fileMD5sum(path['path'])
             self.db.update({'path' : path['path']}, {'$set':{'md5' : md5sum}})
         logging.info("Done computing missing md5 sums...")
-            
+                    
     def update_tags(self, top = None):
         logging.info('Updating file tags...')
         if top is None:
@@ -236,7 +247,7 @@ class photo_db(object):
             photopath = photo_record['path']
             tags = self._get_tags_from_file(photopath)
             if tags is None:
-                logging.warn("Bad tags in: {0}".format(repr(photopath)))
+                #logging.warn("Bad tags in: {0}".format(repr(photopath)))
                 user_tags = ''
                 timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
             else:
@@ -250,7 +261,7 @@ class photo_db(object):
     def monitor_tag_progress(self, total_files, file_count):
         PROGRESS_COUNT = 500 #How often to report progress in units of files
         if file_count == 1: #First call; initialize
-            self.start_time = self.time_now()  #I am not sure this is persistent between calls; may have to be in parent
+            self.start_time = self.time_now()  
             logging.info("Extracting tags for {0}.  File count = {1}".format(repr(self.top), total_files))
         if not file_count % PROGRESS_COUNT:
             elapsed_time = self.time_now() - self.start_time
@@ -263,6 +274,12 @@ class photo_db(object):
         return
         
     def _get_tags_from_file(self, filename):
+        KNOWN_NO_TAG_FILES = [".picasa.ini", "thumbs.db"]
+        KNOWN_NO_TAG_EXTS = [".mov"]  #Use lower case
+        if os.path.basename(filename) in KNOWN_NO_TAG_FILES:
+            return(None)
+        if os.path.splitext(filename)[1].lower() in KNOWN_NO_TAG_EXTS:
+            return(None)
         try:
             filepath = filename.decode(sys.getfilesystemencoding())
             metadata = pyexiv2.ImageMetadata(filepath)
@@ -291,13 +308,17 @@ class photo_db(object):
     def _get_file_signature(self, tags, filepath):
         TEXT_FILES = ['.ini', '.txt']  #file types to be compared ignoring CR/LF for OS portability.  Use lower case (extensions will be lowered before comparison)
         if tags is not None and len(tags.previews) > 0:
-            #may need to normalize end-of-line between systems with mixed.replace('\r\n','\n').replace('\r','\n')
             signature = MD5sums.stringMD5sum(tags.previews[0].data)
         else:
             if str.lower(os.path.splitext(filepath)[1].encode()) in TEXT_FILES:
                 signature = MD5sums.text_file_MD5_signature(filepath)
             else:
-                signature = self.db.find_one({'path' : filepath})['md5']
+                record = self.db.find_one({'path' : filepath})
+                if 'md5' in record:
+                    signature = record['md5']
+                else:
+                    logging.info("MD5 was missing on this record.  Strange...")
+                    signature = MD5sums.fileMD5sum(filepath)
         return(signature)
 
       #--------------------------------------------      
@@ -327,14 +348,14 @@ def main():
 #    pickle_file = "C:/Users/scott_jackson/git/PhotoManager/Photo/tests/test_photos_pickle"
     photo_dir = u"C:/Users/scott_jackson/Pictures/Uploads"
     log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
-    db = pymongo.MongoClient().phototest.photo_archive2  #Set up filepaths to be unique keys?
+    db = pymongo.MongoClient().phototest.photo_archive2
     db.ensure_index('path', unique = True)
     
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     
     start = time.time()
-    photos = photo_db(db, photo_dir)
+    photos = PhotoDb(db, photo_dir)
     photos.sync_db()
     finished = time.time()-start
     print "Elapsed time:",finished

@@ -1,6 +1,8 @@
 import re
 import time
 import pymongo
+from py._path.local import PosixPath
+import posixpath
 
 
 
@@ -61,6 +63,28 @@ def create_md5_dict():
         print "nodeCount:{} nodeSet{}".format(record['nodeCount'], repr(record['nodeSet']))
 
     print "#--Done creating MD5 dict---"
+    
+def extract_picture_frame_sets():
+    outdirs = ['/home/scott/Desktop/SJJframe', '/home/scott/Desktop/NGHframe', '/home/scott/Desktop/JAJframe']
+    searchtags = ['SJJ Frame', 'NGH Frame', 'JAJ Frame']
+    for tag, outdir in zip(searchtags, outdirs):
+        records = db.aggregate(
+                               [
+                                {'$match' : {'user_tags' : {'$in' : [tag] }}},
+                                { '$sort' : { 'signature' : 1}},
+                                { '$group' : 
+                                    {
+                                     '_id' : "$signature",
+                                     'firstPath' : { '$first' : '$path'}
+                                     }
+                                 },
+                                { '$project' : {'firstPath' : 1}}
+                                ])
+        print "#Number of records:", len(records['result'])
+        for count, entry in enumerate(records['result'], start = 1):
+            path = entry['firstPath']
+            print 'convert "{}" -resize x768 "{}/deres{}"'.format(path, outdir, count)
+    
 
 def compute_dir_match():
     #Walk the tree
@@ -82,6 +106,7 @@ db.ensure_index('path', unique = True)
 
 #find_empty_files()
 #find_empty_dirs()
-find_hybrid_dirs()
+#find_hybrid_dirs()
 #create_md5_dict()
-compute_dir_match()
+extract_picture_frame_sets()
+#compute_dir_match()
