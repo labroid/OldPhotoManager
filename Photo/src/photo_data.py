@@ -1,16 +1,13 @@
 '''
-This class and set of functions extract data from a collection of PhotoData.  
-It also contains helper functions to create pickles, provide high-level
-statistics, and print extracted data. The test main at the bottom can print
- the content of the pickle as a diagnostic
- 
- Call with unicode path to get unicode traversal of the filesystem 
+Populates database 'db' with data extracted from a tree at 'root'
+If database doesn't exist setting 'create_new' to True will create new database
+Call with unicode root to get unicode traversal of the filesystem 
 
 Created on Oct 21, 2011
 
 @author: scott_jackson
 
-data model for node in database:
+data model for node in database (not all are present in a given node):
 
     'path' : '',
     'isdir' : False,
@@ -22,10 +19,12 @@ data model for node in database:
     'mtime' : -(sys.maxint - 1), #Set default time to very old
     'timestamp' : datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S'),
     'got_tags' : False,
-    'user_tags' : '',
-    'in_archive' : False, 
+    'user_tags' : [],
+    'in_archive' : False, #TODO probably not needed if refresh_time is used
     'refresh_time' : -(sys.maxint - 1), #Set default time to very old
 '''
+#TODO: Add logging
+#TODO: Is there a need to have 'root' defined when instantiating?  Can we instantiate and then only know 'top' when 'db_sync' is called?
 #pylint: disable=line-too-long
 
 import sys
@@ -34,70 +33,163 @@ import time
 import datetime
 import re
 import logging
+import pymongo
 import pyexiv2
 import socket
 import MD5sums
 
+COLLECTION_CONFIG = 'config'
+COLLECTION_PHOTOS = 'photos'
+DB_STATE_TAG = 'database_state'
+FS_TRAVERSE_TIME_TAG = 'fs_traverse_time'
+HOST = 'host'
+DB_DIRTY = 'dirty'
+DB_CLEAN = 'clean'
+CONFIG_TAG = 'config'
+TRAVERSE_PATH_TAG = 'traverse_path'
+
+def main():
+    host = '4DAA1001519'
+    photo_dir = u"C:/Users/scott_jackson/Pictures/Uploads"
+    log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
+
+        
+    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+    logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
+    
+#    db = pymongo.MongoClient().phototest2
+        
+    start = time.time()
+    photos = PhotoDb(host, photo_dir, create_new = False)
+    photos.sync_db()
+    finished = time.time()-start
+    print "Elapsed time:",finished
+#    photos = get_photo_data(unicode(photo_dir), None)
+#    photos.print_tree()
+#    photos.print_flat()
+#    collection = pymongo.MongoClient().phototest.photo_archive
+#    collection.drop()
+#    collection.insert(photos.emit_records())
+#    pattern = re.compile('.*20140106 Istanbul.*')
+#    dog = db.find({'path': pattern})
+#    for line in dog:
+#       print line
+    print "Done!"
+    
+def set_up_db(host, create_new):
+        if host is None:
+            print "Error - must define host (machine name)"
+            sys.exit(1)
+        try:
+            client = pymongo.MongoClient()
+            db = client[host]
+        except pymongo.errors.ConnectionFailure:
+            print "***ERROR*** Database connection failed.  Make sure mongod is running."
+            sys.exit(1)        
+        except:
+            print "Unknown problem connecting to mongodb"
+            sys.exit(1)
+        if COLLECTION_CONFIG in db.collection_names():
+            config = db[COLLECTION_CONFIG]       
+        elif create_new:
+            config = db[COLLECTION_CONFIG]
+            config.update({CONFIG_TAG : HOST}, {'$set' : {HOST : socket.gethostname()}}, upsert = True)
+        else:
+            print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
+            sys.exit(1)
+        if create_new or COLLECTION_PHOTOS in db.collection_names():
+            photos = db[COLLECTION_PHOTOS]
+        else:
+            print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
+            sys.exit(1)                 
+        photos.ensure_index('path', unique = True)
+        return(db, config, photos)
+        
+def check_host(config):
+    host = socket.gethostname()
+    db_host_record = config.find_one({CONFIG_TAG : HOST})
+    if HOST not in db_host_record:
+        print "Error - no host listed for this database.  Exiting to prevent damage."
+        sys.exit(1)
+    db_host = db_host_record[HOST]
+    if host != db_host:
+        print "Error - Host is {}, while database was built on {}.  Update do database not allowed on this host."
+        sys.exit(1)    
+       
 class PhotoDb(object):
-    def __init__(self, db = None, root = None):
-        self._set_up_db(db)
-        if db is None:
-            print "Error - must define db (points to database)"
-        self.photos = db.photos
-        self.config = db.config
-        #TODO if db is not on this machine, then exit with error
-        #TODO config collections if they don't exist
+    def __init__(self, host = None, root = None, create_new = False):    
         if root is None:
             print "Error - must define root node"
         self.root = os.path.normpath(root)
         self.start_time = 0  #Persistent variable for method in this class because I don't know a better way
+        db, self.config, self.photos = set_up_db(host, create_new)
+        check_host(self.config)
+        if not create_new:
+            self._check_db_clean()
         
+    def _check_db_clean(self):
+        states = self.config.find({DB_STATE_TAG : {'$exists' : True}}).sort("_id", pymongo.DESCENDING).limit(10)
+        if states.count() < 1:
+            print "Error - database status not available; don't know if clean"
+            #TODO: Figure out how to recover - probably regenerate whole thing
+            sys.exit(1)
+        state = states[0]
+        if state[DB_STATE_TAG] == DB_DIRTY:
+            #TODO: figure out what to do to recover - probably regenerate whole thing
+            print "Error - DB is dirty.  No recovery options implemented."
+            sys.exit(1)
+        elif state[DB_STATE_TAG] == DB_CLEAN:
+            return
+        else:
+            print "Error - unknown if DB clean.  Check returned state of '{}'".format(state)
+            #TODO:  figure out how to recover; probably regenerate whole thing
+            sys.exit(1)
+            
     def sync_db(self, top = None):
         '''
         Sync contents of database with filesystem starting at 'top'
         '''        
         if top is None:
             top = self.root
-        self.config.update({'param' : 'db_state'},
-                           {
-                            'database_state' : 'dirty', 
-                            'fs_traverse_start_time' : self._time_now(), 
-                            'fs_traverse_path' : top
-                            }, 
-                           upsert = True)
+        self._mark_db_status('dirty')
         self._traverse_fs(top)
         self._update_md5(top)
         self._update_tags(top)
-#        self.prune_db(top)
-#        self.mark_db('clean') #If top wasn't root, then mark partial
+        self._prune_db(top)
+        self._mark_db_status('clean')
 
-    def _prune_db(self,top):
+    def _prune_db(self, top):
+        logging.info("Pruning from database nodes no longer in filesystem...")
         if top is None:
             top = self.root
         time.sleep(1) #Wait a second to make double-dog sure mongodb is caught up 
-        fresh = self.config.findOne('fs_traverse_start_time')
-        if fresh is None:
+        fresh_times = self.config.find().sort(FS_TRAVERSE_TIME_TAG, pymongo.DESCENDING).limit(10)
+        if fresh_times.count() < 1:
+            #TODO: check latest time is associated with 'dirty' state and top paths are the same
             logging.error('ERROR: no file system fresh start time available.  Too dangerous to continue.')
             sys.exit(1)
-        regex = self._make_path_regex(top)
-        self.photos.find({'path' : regex, 'refresh_time' : {'$lt' : fresh}})  #whatever inequality means 'older than'
-        
-
-    def _mark_db_status(self, status, traverse_path = None):
+        fresh_time = fresh_times[0]['fs_traverse_time']
+        regex = self._make_tree_regex(top)
+        records = self.photos.find({'path' : regex, 'refresh_time' : {'$lt' : fresh_time}})
+        num_removed = records.count()
+        for record in records:
+            logging.info("Removed records for node: {}".format(record['path']))
+        rm_stat = self.photos.remove({'path' : regex, 'refresh_time' : {'$lt' : fresh_time}})
+        if num_removed != int(rm_stat['n']):
+            logging.error("Error - number expected to be removed from database does not match expected number.  Database return message: {}".format(rm_stat))
+        logging.info("Done pruning.  Pruned {} nodes".format(rm_stat['n']))
+            
+         
+    def _mark_db_status(self, status):
         if status == 'dirty':
-            self.config.update({'database_state' : 'dirty', 'last_fs_traverse' : self._time_now(), 'last_traverse_path' : traverse_path}, upsert = True)
+            self.config.insert({DB_STATE_TAG : 'dirty', FS_TRAVERSE_TIME_TAG : time_now(), TRAVERSE_PATH_TAG : self.root})
         elif status == 'clean':
-            self.config.update({'database_state' : 'clean'}, upsert = True)
+            self.config.insert({DB_STATE_TAG : 'clean', FS_TRAVERSE_TIME_TAG : time_now(), TRAVERSE_PATH_TAG : self.root})
         else:
-            logging.error("Error: bad database status received.  Got: {}".format(status))
-        self.config.update({ }) #Save time of last traverse
-        #mark clean, dirty, and save timestamp when update starts
-#      if status == 'dirty':
-#            self.photos.update({'$exists' {'db_state' : True}}, {$set : {'db_state' : 'dirty', 'db_refresh_start' : self._time_now()}}, upsert = True)
-        pass
+            logging.error("Error: bad database status received.  Got: '{}'".format(status))
     
     def _walk_error(self, walk_err):
-        print "Error {}:{}".format(walk_err.errno, walk_err.strerror)  #TODO Maybe some better error trapping here...and do we need to encode strerror if it might contain unicode??
+        print "Error {}:{}".format(walk_err.errno, walk_err.strerror)  #TODO: Maybe some better error trapping here...and do we need to encode strerror if it might contain unicode??
         raise
      
     def _update_file_record(self, filepath):
@@ -112,7 +204,7 @@ class PhotoDb(object):
                             'size':file_stat.st_size, 
                             'mtime':file_stat.st_mtime, 
                             'in_archive':True, 
-                            'refresh_time':self._time_now()
+                            'refresh_time':time_now()
                             }
                            )
         elif db_file['size'] != file_stat.st_size or db_file['mtime'] != file_stat.st_mtime:
@@ -129,14 +221,14 @@ class PhotoDb(object):
                                     'got_tags':False,
                                     'user_tags':[], 
                                     'in_archive':True, 
-                                    'refresh_time':self._time_now()
+                                    'refresh_time':time_now()
                                     }
                             }
                            )
         else:
             self.photos.update(
                            { 'path' : db_file[ 'path' ] }, 
-                           { '$set' : { 'refresh_time' : self._time_now() }}
+                           { '$set' : { 'refresh_time' : time_now() }}
                            )
 
     def _update_dir_record(self, dirpath, dirpaths, filepaths):
@@ -152,9 +244,9 @@ class PhotoDb(object):
                         'dirpaths':dirpaths, 
                         'filepaths':filepaths, 
                         'in_archive':True, 
-                        'refresh_time':self._time_now()
+                        'refresh_time':time_now()
                         }, 
-                       upsert=True) #Replace existing record - TODO wipe out previous sum data, if the record exists
+                       upsert=True) #Replace existing record - TODO: wipe out previous sum data, if the record exists
 
     def _traverse_fs(self, top = None):
         if top is None:
@@ -173,10 +265,7 @@ class PhotoDb(object):
         logging.info("Done traversing filesystem tree.")
         return
             
-    def _time_now(self):
-        #Returns current time in seconds with microsecond resolution
-        t = datetime.datetime.now()
-        return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
+
 
     def _stat_node(self, nodepath):
         try:
@@ -186,25 +275,28 @@ class PhotoDb(object):
             sys.exit(1)
         return(file_stat)
 
-    def _make_path_regex(self, top):
-        #The following is incorrect - it will match all paths that start with the base string.  Should be base string 
-        #and children (path/)
-        path = re.sub(r'\\', r'\\\\', top)
-        basepath = '^' + path
-        children = '^' +  path + '\\\\.*' 
-        pattern = unicode(basepath + '|' + children)
-        pattern = unicode(pattern)
-        print pattern
-        raw_input("Press enter to continue")
-        regex = re.compile(pattern)
-        return regex
-
-    
+    def _make_tree_regex(self, top):
+        '''
+        Return regex that will extract tree starting from top, independent of OS
+        '''
+        if top.count('/') > 0: #Linux
+            top_tree = '^' + top + '$|^' + top + '/.*'
+            top_regex = re.compile(top_tree)
+        elif top.count('\\') > 0: #Windows        
+            path = re.sub(r'\\', r'\\\\', top)
+            basepath = '^' + path
+            children = '^' +  path + '\\\\.*' 
+            pattern = unicode(basepath + '|' + children)
+            top_regex = re.compile(pattern)
+        else:
+            print("Error:  Path to top of tree contains no path separators, can't determine OS type.  Tree top received: {}".format(top))
+        return top_regex
+        
     def _update_md5(self, top = None):
         logging.info("Computing missing md5 sums...")
         if top is None:
             top = self.root
-        regex = self._make_path_regex(top)
+        regex = self._make_tree_regex(top)
         files = self.photos.find(
                              {
                              '$and' : [
@@ -238,19 +330,16 @@ class PhotoDb(object):
             logging.info('Computing MD5 {} for: {}'.format(n, repr(path['path'])))
             md5sum = MD5sums.fileMD5sum(path['path'])
             self.photos.update({'path' : path['path']}, {'$set':{'md5' : md5sum}})
-        logging.info("Done computing missing md5 sums...")
+        logging.info("Done computing missing md5 sums.")
                     
     def _update_tags(self, top = None):
         logging.info('Updating file tags...')
         if top is None:
             top = self.root
-        pattern = '^' + re.sub(r'\\', r'\\\\', top) + '.*'
-        pattern = pattern + '\.png|' + pattern + '\.jpg'  
-        pattern = unicode(pattern)
-        regex = re.compile(pattern, re.IGNORECASE)
+        tree_regex = self._make_tree_regex(top)
         files = self.photos.find(
                               {
-#                               'path' : regex,   #TODO: fix this - should only explore 'top'
+                               'path' : tree_regex,
                                'isdir' : False, 
                                '$or' : [
                                         {'got_tags' : {'$exists' : False}},
@@ -274,22 +363,32 @@ class PhotoDb(object):
                 user_tags = self._get_user_tags_from_tags(tags)
                 timestamp = self._get_timestamp_from_tags(tags)  
             signature = self._get_file_signature(tags, photopath)  #Get signature should now do the thumbnailMD5 and if not find another signature.
-            self.photos.update({'path' : photopath}, {'$set' : {'user_tags' : user_tags, 'timestamp' : timestamp, 'signature' : signature, 'got_tags' : True}})
-        logging.info('Done updating file tags...')
+            self.photos.update(
+                               {'path' : photopath}, 
+                                {'$set' : 
+                                 {
+                                  'user_tags' : user_tags, 
+                                  'timestamp' : timestamp, 
+                                  'signature' : signature, 
+                                  'got_tags' : True
+                                 }
+                                }
+                               )
+        logging.info('Done updating file tags.')
         return()
     
     def _monitor_tag_progress(self, total_files, file_count):
         PROGRESS_COUNT = 500 #How often to report progress in units of files
         if file_count == 1: #First call; initialize
-            self.start_time = self._time_now()  
+            self.start_time = time_now()  
             logging.info("Extracting tags for {0}.  File count = {1}".format(repr(self.root), total_files))
         if not file_count % PROGRESS_COUNT:
-            elapsed_time = self._time_now() - self.start_time
+            elapsed_time = time_now() - self.start_time
             total_time_projected = float(elapsed_time) / float(file_count) * total_files
             time_remaining = float(elapsed_time) / float(file_count) * float(total_files - file_count)
             logging.info("{0} of {1} = {2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time, str(datetime.timedelta(seconds=time_remaining)), str(datetime.timedelta(seconds=total_time_projected))))
         if file_count == total_files:
-            elapsed_time = self._time_now() - self.start_time
+            elapsed_time = time_now() - self.start_time
             logging.info("Tags extracted: {0}.  Elapsed time: {1:.0g} seconds or {2:.0g} ms per file = {3:.0g} for 100k files".format(file_count, elapsed_time, elapsed_time/total_files * 1000.0, elapsed_time/total_files * 100000.0/60.0))
         return
         
@@ -311,6 +410,7 @@ class PhotoDb(object):
             logging.error("%s Unknown Error Trapped", repr(filename))
             return(None)
         return(metadata) 
+    
     
     def _get_timestamp_from_tags(self,tags):
         if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
@@ -340,8 +440,15 @@ class PhotoDb(object):
                     logging.info("MD5 was missing on this record.  Strange...")
                     signature = MD5sums.fileMD5sum(filepath)
         return(signature)
+    
+def time_now():
+    '''
+    Returns current time in seconds with microsecond resolution
+    '''
+    t = datetime.datetime.now()
+    return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
 
-      #--------------------------------------------      
+#--------------------------------------------      
     
 #Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
 #class Usage(Exception):
@@ -361,67 +468,8 @@ class PhotoDb(object):
 #        print >>sys.stderr, err.msg
 #        print >>sys.stderr, "for help use --help"
 #        return 2
-import re
-def main():
-    import pymongo
-    photo_dir = u"C:/Users/scott_jackson/Pictures/Uploads"
-    log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
 
-        
-    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
-    logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
-    
-    db = pymongo.MongoClient().phototest2
-        
-    start = time.time()
-    photos = PhotoDb(db, photo_dir)
-    photos.sync_db()
-    finished = time.time()-start
-    print "Elapsed time:",finished
-#    photos = get_photo_data(unicode(photo_dir), None)
-#    photos.print_tree()
-#    photos.print_flat()
-#    collection = pymongo.MongoClient().phototest.photo_archive
-#    collection.drop()
-#    collection.insert(photos.emit_records())
-#    pattern = re.compile('.*20140106 Istanbul.*')
-#    dog = db.find({'path': pattern})
-#    for line in dog:
-#       print line
-    print "Done!"
+
 
 if __name__ == "__main__":
     sys.exit(main())
-
-#------------------------------------------------
-#
-#
-#
-#------------------------------------------------
-
-
-class NodeInfo(object):
-    def __init__(self):
-        self.path = ''
-        self.isdir = False
-        self.size = -1
-        self.md5 = ''
-        self.signature = ''
-        self.dirpaths = []
-        self.filepaths = []      
-        self.mtime = -(sys.maxint - 1) #Set default time to very old
-        self.timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
-        self.got_tags = False
-        self.user_tags = ''
-        self.in_archive = False 
-
-    
-
-
-
-
-
-    
-
-
-    
