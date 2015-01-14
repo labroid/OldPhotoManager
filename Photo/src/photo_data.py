@@ -64,7 +64,7 @@ def main():
     photos = PhotoDb(host, photo_dir, create_new = False)
     photos.sync_db()
     finished = time.time()-start
-    print "Elapsed time:",finished
+    print "Elapsed time:", finished
 #    photos = get_photo_data(unicode(photo_dir), None)
 #    photos.print_tree()
 #    photos.print_flat()
@@ -85,33 +85,33 @@ def time_now():
     return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
     
 def set_up_db(host, create_new):
-        if host is None:
-            print "Error - must define host (machine name)"
-            sys.exit(1)
-        try:
-            client = pymongo.MongoClient()
-            db = client[host]
-        except pymongo.errors.ConnectionFailure:
-            print "***ERROR*** Database connection failed.  Make sure mongod is running."
-            sys.exit(1)        
-        except:
-            print "Unknown problem connecting to mongodb"
-            sys.exit(1)
-        if COLLECTION_CONFIG in db.collection_names():
-            config = db[COLLECTION_CONFIG]       
-        elif create_new:
-            config = db[COLLECTION_CONFIG]
-            config.update({CONFIG_TAG : HOST}, {'$set' : {HOST : socket.gethostname()}}, upsert = True)
-        else:
-            print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
-            sys.exit(1)
-        if create_new or COLLECTION_PHOTOS in db.collection_names():
-            photos = db[COLLECTION_PHOTOS]
-        else:
-            print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
-            sys.exit(1)                 
-        photos.ensure_index('path', unique = True)
-        return(db, config, photos)
+    if host is None:
+        print "Error - must define host (machine name)"
+        sys.exit(1)
+    try:
+        client = pymongo.MongoClient()
+        db = client[host]
+    except pymongo.errors.ConnectionFailure:
+        print "***ERROR*** Database connection failed.  Make sure mongod is running."
+        sys.exit(1)        
+    except:
+        print "Unknown problem connecting to mongodb"
+        sys.exit(1)
+    if COLLECTION_CONFIG in db.collection_names():
+        config = db[COLLECTION_CONFIG]       
+    elif create_new:
+        config = db[COLLECTION_CONFIG]
+        config.update({CONFIG_TAG : HOST}, {'$set' : {HOST : socket.gethostname()}}, upsert = True)
+    else:
+        print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
+        sys.exit(1)
+    if create_new or COLLECTION_PHOTOS in db.collection_names():
+        photos = db[COLLECTION_PHOTOS]
+    else:
+        print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
+        sys.exit(1)                 
+    photos.ensure_index('path', unique = True)
+    return(db, config, photos)
         
 def check_host(config):
     host = socket.gethostname()
