@@ -50,6 +50,7 @@ TRAVERSE_PATH_TAG = 'traverse_path'
 
 def main():
     host = '4DAA1001519'
+#    host = 'barney'
     photo_dir = u"C:/Users/scott_jackson/Pictures/Uploads"
     log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
 
@@ -75,6 +76,13 @@ def main():
 #    for line in dog:
 #       print line
     print "Done!"
+    
+def time_now():
+    '''
+    Returns current time in seconds with microsecond resolution
+    '''
+    t = datetime.datetime.now()
+    return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
     
 def set_up_db(host, create_new):
         if host is None:
@@ -115,7 +123,82 @@ def check_host(config):
     if host != db_host:
         print "Error - Host is {}, while database was built on {}.  Update do database not allowed on this host."
         sys.exit(1)    
-       
+        
+def check_db_clean(config):
+    states = config.find({DB_STATE_TAG : {'$exists' : True}}).sort("_id", pymongo.DESCENDING).limit(10)
+    if states.count() < 1:
+        print "Error - database status not available; don't know if clean"
+        #TODO: Figure out how to recover - probably regenerate whole thing
+        sys.exit(1)
+    state = states[0]
+    if state[DB_STATE_TAG] == DB_DIRTY:
+        #TODO: figure out what to do to recover - probably regenerate whole thing
+        print "Error - DB is dirty.  No recovery options implemented."
+        sys.exit(1)
+    elif state[DB_STATE_TAG] == DB_CLEAN:
+        return
+    else:
+        print "Error - unknown if DB clean.  Check returned state of '{}'".format(state)
+        #TODO:  figure out how to recover; probably regenerate whole thing
+        sys.exit(1)      
+
+def stat_node(nodepath):
+    try:
+        file_stat = os.stat(nodepath)
+    except:
+        logging.error("Can't stat file at {0}".format(repr(nodepath)))
+        sys.exit(1)
+    return(file_stat)          
+
+def make_tree_regex(top):
+    '''
+    Return regex that when queried will extract tree starting from top, independent of OS
+    '''
+    if top.count('/') > 0: #Linux
+        top_tree = '^' + top + '$|^' + top + '/.*'
+        top_regex = re.compile(top_tree)
+    elif top.count('\\') > 0: #Windows        
+        path = re.sub(r'\\', r'\\\\', top)
+        basepath = '^' + path
+        children = '^' +  path + '\\\\.*' 
+        pattern = unicode(basepath + '|' + children)
+        top_regex = re.compile(pattern)
+    else:
+        print("Error:  Path to top of tree contains no path separators, can't determine OS type.  Tree top received: {}".format(top))
+    return top_regex
+        
+def get_metadata_from_file(filename):
+    KNOWN_NO_TAG_FILES = [".picasa.ini", "thumbs.db"]
+    KNOWN_NO_TAG_EXTS = [".mov"]  #Use lower case
+    if os.path.basename(filename) in KNOWN_NO_TAG_FILES:
+        return(None)
+    if os.path.splitext(filename)[1].lower() in KNOWN_NO_TAG_EXTS:
+        return(None)
+    try:
+        filepath = filename.decode(sys.getfilesystemencoding())
+        metadata = pyexiv2.ImageMetadata(filepath)
+        metadata.read()
+    except IOError as err:  #The file contains photo of an unknown image type or file missing or can't be opened
+        logging.warning("%s IOError, errno = %s, strerror = %s args = %s", repr(filename), str(err.errno), err.strerror, err.args)
+        return(None)
+    except:
+        logging.error("%s Unknown Error Trapped", repr(filename))
+        return(None)
+    return(metadata) 
+    
+def get_timestamp_from_metadata(metadata):
+    if 'Exif.Photo.DateTimeOriginal' in metadata.exif_keys:
+        timestamp = metadata['Exif.Photo.DateTimeOriginal'].value
+    else:
+        timestamp = datetime.datetime.strptime('1800:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
+    return(timestamp)
+
+def get_user_tags_from_metadata(metadata):
+    if 'Xmp.dc.subject' in metadata.xmp_keys:
+        return(metadata['Xmp.dc.subject'].value)
+    else:
+        return(None)
+                   
 class PhotoDb(object):
     def __init__(self, host = None, root = None, create_new = False):    
         if root is None:
@@ -125,26 +208,8 @@ class PhotoDb(object):
         db, self.config, self.photos = set_up_db(host, create_new)
         check_host(self.config)
         if not create_new:
-            self._check_db_clean()
-        
-    def _check_db_clean(self):
-        states = self.config.find({DB_STATE_TAG : {'$exists' : True}}).sort("_id", pymongo.DESCENDING).limit(10)
-        if states.count() < 1:
-            print "Error - database status not available; don't know if clean"
-            #TODO: Figure out how to recover - probably regenerate whole thing
-            sys.exit(1)
-        state = states[0]
-        if state[DB_STATE_TAG] == DB_DIRTY:
-            #TODO: figure out what to do to recover - probably regenerate whole thing
-            print "Error - DB is dirty.  No recovery options implemented."
-            sys.exit(1)
-        elif state[DB_STATE_TAG] == DB_CLEAN:
-            return
-        else:
-            print "Error - unknown if DB clean.  Check returned state of '{}'".format(state)
-            #TODO:  figure out how to recover; probably regenerate whole thing
-            sys.exit(1)
-            
+            check_db_clean(self.config)
+
     def sync_db(self, top = None):
         '''
         Sync contents of database with filesystem starting at 'top'
@@ -169,7 +234,7 @@ class PhotoDb(object):
             logging.error('ERROR: no file system fresh start time available.  Too dangerous to continue.')
             sys.exit(1)
         fresh_time = fresh_times[0]['fs_traverse_time']
-        regex = self._make_tree_regex(top)
+        regex = make_tree_regex(top)
         records = self.photos.find({'path' : regex, 'refresh_time' : {'$lt' : fresh_time}})
         num_removed = records.count()
         for record in records:
@@ -178,7 +243,6 @@ class PhotoDb(object):
         if num_removed != int(rm_stat['n']):
             logging.error("Error - number expected to be removed from database does not match expected number.  Database return message: {}".format(rm_stat))
         logging.info("Done pruning.  Pruned {} nodes".format(rm_stat['n']))
-            
          
     def _mark_db_status(self, status):
         if status == 'dirty':
@@ -193,7 +257,7 @@ class PhotoDb(object):
         raise
      
     def _update_file_record(self, filepath):
-        file_stat = self._stat_node(filepath)
+        file_stat = stat_node(filepath)
         db_file = self.photos.find_one({'path':filepath}, {'_id':0})
         if db_file is None:
             logging.debug("New File detected: {0}".format(repr(filepath)))
@@ -264,39 +328,12 @@ class PhotoDb(object):
                     self._update_file_record(filepath)
         logging.info("Done traversing filesystem tree.")
         return
-            
-
-
-    def _stat_node(self, nodepath):
-        try:
-            file_stat = os.stat(nodepath)
-        except:
-            logging.error("Can't stat file at {0}".format(repr(nodepath)))
-            sys.exit(1)
-        return(file_stat)
-
-    def _make_tree_regex(self, top):
-        '''
-        Return regex that will extract tree starting from top, independent of OS
-        '''
-        if top.count('/') > 0: #Linux
-            top_tree = '^' + top + '$|^' + top + '/.*'
-            top_regex = re.compile(top_tree)
-        elif top.count('\\') > 0: #Windows        
-            path = re.sub(r'\\', r'\\\\', top)
-            basepath = '^' + path
-            children = '^' +  path + '\\\\.*' 
-            pattern = unicode(basepath + '|' + children)
-            top_regex = re.compile(pattern)
-        else:
-            print("Error:  Path to top of tree contains no path separators, can't determine OS type.  Tree top received: {}".format(top))
-        return top_regex
         
     def _update_md5(self, top = None):
         logging.info("Computing missing md5 sums...")
         if top is None:
             top = self.root
-        regex = self._make_tree_regex(top)
+        regex = make_tree_regex(top)
         files = self.photos.find(
                              {
                              '$and' : [
@@ -336,7 +373,7 @@ class PhotoDb(object):
         logging.info('Updating file tags...')
         if top is None:
             top = self.root
-        tree_regex = self._make_tree_regex(top)
+        tree_regex = make_tree_regex(top)
         files = self.photos.find(
                               {
                                'path' : tree_regex,
@@ -354,14 +391,14 @@ class PhotoDb(object):
         for file_count, photo_record in enumerate(files, start = 1):
             self._monitor_tag_progress(total_files, file_count)
             photopath = photo_record['path']
-            tags = self._get_tags_from_file(photopath)
+            tags = get_metadata_from_file(photopath)
             if tags is None:
                 #logging.warn("Bad tags in: {0}".format(repr(photopath)))
                 user_tags = ''
                 timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
             else:
-                user_tags = self._get_user_tags_from_tags(tags)
-                timestamp = self._get_timestamp_from_tags(tags)  
+                user_tags = get_user_tags_from_metadata(tags)
+                timestamp = get_timestamp_from_metadata(tags)  
             signature = self._get_file_signature(tags, photopath)  #Get signature should now do the thumbnailMD5 and if not find another signature.
             self.photos.update(
                                {'path' : photopath}, 
@@ -391,44 +428,12 @@ class PhotoDb(object):
             elapsed_time = time_now() - self.start_time
             logging.info("Tags extracted: {0}.  Elapsed time: {1:.0g} seconds or {2:.0g} ms per file = {3:.0g} for 100k files".format(file_count, elapsed_time, elapsed_time/total_files * 1000.0, elapsed_time/total_files * 100000.0/60.0))
         return
-        
-    def _get_tags_from_file(self, filename):
-        KNOWN_NO_TAG_FILES = [".picasa.ini", "thumbs.db"]
-        KNOWN_NO_TAG_EXTS = [".mov"]  #Use lower case
-        if os.path.basename(filename) in KNOWN_NO_TAG_FILES:
-            return(None)
-        if os.path.splitext(filename)[1].lower() in KNOWN_NO_TAG_EXTS:
-            return(None)
-        try:
-            filepath = filename.decode(sys.getfilesystemencoding())
-            metadata = pyexiv2.ImageMetadata(filepath)
-            metadata.read()
-        except IOError as err:  #The file contains photo of an unknown image type or file missing or can't be opened
-            logging.warning("%s IOError, errno = %s, strerror = %s args = %s", repr(filename), str(err.errno), err.strerror, err.args)
-            return(None)
-        except:
-            logging.error("%s Unknown Error Trapped", repr(filename))
-            return(None)
-        return(metadata) 
-    
-    
-    def _get_timestamp_from_tags(self,tags):
-        if 'Exif.Photo.DateTimeOriginal' in tags.exif_keys:
-            timestamp = tags['Exif.Photo.DateTimeOriginal'].value
-        else:
-            timestamp = datetime.datetime.strptime('1800:1:1 00:00:00','%Y:%m:%d %H:%M:%S')
-        return(timestamp)
 
-    def _get_user_tags_from_tags(self, tags):
-        if 'Xmp.dc.subject' in tags.xmp_keys:
-            return(tags['Xmp.dc.subject'].value)
-        else:
-            return(None)
         
-    def _get_file_signature(self, tags, filepath):
+    def _get_file_signature(self, metadata, filepath):
         TEXT_FILES = ['.ini', '.txt']  #file types to be compared ignoring CR/LF for OS portability.  Use lower case (extensions will be lowered before comparison)
-        if tags is not None and len(tags.previews) > 0:
-            signature = MD5sums.stringMD5sum(tags.previews[0].data)
+        if metadata is not None and len(metadata.previews) > 0:
+            signature = MD5sums.stringMD5sum(metadata.previews[0].data)
         else:
             if str.lower(os.path.splitext(filepath)[1].encode()) in TEXT_FILES:
                 signature = MD5sums.text_file_MD5_signature(filepath)
@@ -440,13 +445,7 @@ class PhotoDb(object):
                     logging.info("MD5 was missing on this record.  Strange...")
                     signature = MD5sums.fileMD5sum(filepath)
         return(signature)
-    
-def time_now():
-    '''
-    Returns current time in seconds with microsecond resolution
-    '''
-    t = datetime.datetime.now()
-    return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
+
 
 #--------------------------------------------      
     
