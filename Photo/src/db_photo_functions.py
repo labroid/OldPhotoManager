@@ -57,93 +57,7 @@ def main():
     #print_tree(top)
     #find_unexpected_files(top)
     
-def find_duplicates(db_archive, top_archive, db_target, top_target):
-    '''
-    If there is a database, mount it
-    otherwise extract photo data
-    make request to archive
-    print results
-    '''
-    '''
-    Mount target db
-    if target db is this host:
-        sync db
-    mount archive db
-    for file in target db from top:
-        if file is in archive db:
-            print relevant data
-    '''
-    #config_host = db_target.config.find_one('host' : )
-    regex = tree_regex(top_target)
-    records = db_target.photos.find({'path' : regex})
-    for record in records:
-        match = db_archive.photos.find_one({'signature' : record['signature']}) #TODO: consider 'top' here
-        if match.count() < 1:
-            print "{}: No match. Please upload."
-        else:
-            if record['md5'] == match['md5']:
-                print "{}: Exact match: {}".format(match['path'])
-            else:
-                print "{}: Signature match: {}".format(match['path'])
-                
         
-def tree_regex(top):
-    '''
-    Return regex that will extract tree starting from top, independent of OS
-    '''
-    if top.count('/') > 0: #Linux
-        top_tree = '^' + top + '$|^' + top + '/.*'
-        top_regex = re.compile(top_tree)
-    elif top.count('\\') > 0: #Windows
-        path = re.sub(r'\\', r'\\\\', top)
-        basepath = '^' + path
-        children = '^' +  path + '\\\\.*' 
-        pattern = unicode(basepath + '|' + children)
-        pattern = unicode(pattern)
-        top_regex = re.compile(pattern)
-    else:
-        print("Error:  Path to top of tree contains no path separators, can't determine OS type.  Tree top received: {}".format(top))
-    return top_regex
-
-def find_empty_files(photos, top):
-    '''
-    Print list of empty files suitable for use in shell script to delete them  TODO:  Move them?
-    '''
-    emptylist = photos.find({'isdir' : False, 'path' : tree_regex(top), 'size' : long(0)})
-    print "#Number of empty files: {}".format(emptylist.count())
-    for empty in emptylist:
-        print "#rm {} # Size {}".format(empty['path'], empty['size'])
-    print "#--Done finding empty files---"
-
-def find_empty_dirs(photos, top):
-    '''
-    Print list of empty directories suitable for use in shell script to delete them
-    '''    
-    emptylist = photos.find({'isdir' : True, 'filepaths' : [], 'dirpaths' : [], 'path' : tree_regex(top)},{'path' : 1, 'filepaths' : 1, 'dirpaths' : 1})
-    print "Number of empty dirs: {}".format(emptylist.count())
-    for empty in emptylist:
-        print "#rmdir {} # File list {}, Dir list {}".format(empty['path'], empty['filepaths'], empty['dirpaths'])
-    print "#--Done finding empty dirs---"
-
-def find_unexpected_files(photos, top):
-    '''
-    Print list of unexpected file types suitable for use in shell script to move them
-    '''
-    EXPECTED = ['\.jpg$', '\.png$', '\.picasa.ini$', 'thumbs.db$', '\.mov$', '\.avi$', '\.thm$', '\.bmp$', '\.gif$']
-    all_targets = ''
-    for target in EXPECTED:
-        all_targets = all_targets + target + "|"
-    all_targets = all_targets[:-1]
-    target_regex = re.compile(all_targets, re.IGNORECASE)
-    records = photos.aggregate([
-                                 {'$match' : { 'path' : tree_regex(top)}},
-                                 {'$match' : {'isdir' : False}},
-                                 {'$match' : { 'path' : {'$not' : target_regex}}},
-                                 {'$project' : {'_id' : False, 'size' : True, 'path' : True}}
-                                ])
-    for record in records['result']:
-        print("#rm {} # Size: {}".format(record['path'], record['size']))
-    print "Done"
    
 def find_hybrid_dirs(photos, top):  #Broken
     #Look for dirs that have files and dirs in them (this shouldn't happen if the photo directory is clean)
@@ -153,65 +67,6 @@ def find_hybrid_dirs(photos, top):  #Broken
  #   for hybrids in hybridlist:
 #        print "#rmdir {} # File list {}, Dir list {}".format(hybrids['path'], hybrids['filepaths'], hybrids['dirpaths'])
 #print "#--Done finding hybrid 
-
-class tree_stats():
-    def __init__(self, photos, top):
-        self.photos = photos
-        self.top = top
-        self.top_regex = tree_regex(top)
-        self.total_nodes = 0
-        self.total_dirs = 0
-        self.total_files = 0
-        self.tagged_records = 0
-        self.unique_signatures = 0
-        self.unique_md5s = 0
-        self.compute_tree_stats()
-        
-    def compute_tree_stats(self):
-        self.total_nodes = self.photos.find({'path' : self.top_regex}).count()
-        self.total_dirs = self.photos.find({'path' : self.top_regex, 'isdir' : True}).count()
-        self.total_files = self.photos.find({'path' : self.top_regex, 'isdir' : False}).count()
-        self.tagged_records = self.photos.find({'path' : self.top_regex, 'isdir' : False, 'user_tags' : {'$ne' : []}}).count()
-        signatures = self.photos.aggregate([
-                                               { "$match" : {
-                                                            "path" : self.top_regex,
-                                                            "isdir" : False, 
-                                                            "signature" : { "$ne" : "" }
-                                                            }
-                                               },
-                                               {"$group" : {
-                                                           "_id" : "$signature"
-                                                           }
-                                                }
-                                              ])
-        if signatures['ok'] != 1:
-            raise RuntimeError('Mongodb return code not = 1.  Got: {}'.format(signatures['ok']))
-        self.unique_signatures = len(signatures['result'])
-        md5s = self.photos.aggregate([
-                                           { "$match" : {
-                                                        "path" : self.top_regex,
-                                                        "isdir" : False,
-                                                        "md5" : { "$ne" : "" }
-                                                        }
-                                           },
-                                           {"$group" : {
-                                                       "_id" : "$md5"
-                                                       }
-                                            }
-                                          ])
-        if md5s['ok'] != 1:
-            raise RuntimeError('Mongodb return code not = 1.  Got: {}'.format(signatures['ok']))
-        self.unique_md5s = len(md5s['result'])
-        
-    def print_tree_stats(self):
-        print "Stats for tree rooted at {}".format(self.top)
-        print("Total nodes: {}".format(self.total_nodes))
-        print("Total dirs: {}".format(self.total_dirs))
-        print("Total files: {}".format(self.total_files))
-        print("Total tagged: {}, {:.1%} of files".format(self.tagged_records, float(self.tagged_records)/self.total_files))
-        print("Unique signatures = {}, {} duplicates ({:.1%})".format(self.unique_signatures, self.total_files - self.unique_signatures, 1.0 - float(self.unique_signatures)/self.total_files))
-        print("Unique MD5s = {}, {} duplicates ({:.1%})".format(self.unique_md5s, self.total_files - self.unique_md5s, 1.0 - float(self.unique_md5s)/self.total_files))
-        
 
 def check_user_tags(photos, top, fix = False):
     no_tag_field= photos.find({'path' : tree_regex(top), 'isdir' : False, 'user_tags' : {'$exists' : False}}, {'_id' : False, 'path' : True})
@@ -335,8 +190,6 @@ def compute_tag_distribution(photos, top):
     print "Warning:  These counts include duplicate results"
     for w in sorted(results, key=results.get, reverse=True):
         print w, results[w]
-        
-
-    
+            
 if __name__ == "__main__":
     sys.exit(main())

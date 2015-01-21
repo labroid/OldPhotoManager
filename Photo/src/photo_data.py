@@ -33,49 +33,65 @@ import time
 import datetime
 import re
 import logging
+import posixpath
 import pymongo
 import pyexiv2
 import socket
 import MD5sums
+import ntpath
 
-COLLECTION_CONFIG = 'config'
-COLLECTION_PHOTOS = 'photos'
-DB_STATE_TAG = 'database_state'
-FS_TRAVERSE_TIME_TAG = 'fs_traverse_time'
-HOST = 'host'
-DB_DIRTY = 'dirty'
-DB_CLEAN = 'clean'
-CONFIG_TAG = 'config'
-TRAVERSE_PATH_TAG = 'traverse_path'
+_CONFIG = 'config'
+_PHOTOS = 'photos'
+_DB_STATE = 'database_state'
+_FS_TRAVERSE_TIME = 'fs_traverse_time'
+_HOST = 'host'
+_DIRTY = 'dirty'
+_CLEAN = 'clean'
+_TRAVERSE_PATH = 'traverse_path'
+_LINUX = 'linux'
+_WINDOWS = 'windows'
+_PATH = 'path'
 
 def main():
-    host = '4DAA1001519'
-#    host = 'barney'
-    photo_dir = u"C:/Users/scott_jackson/Pictures/Uploads"
+    t_host = '4DAA1001519'
+    a_host = '4DAA1001519'
+    
+#    a_host = 'barney'
+    t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
+    a_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
+    t_photo_dir = u"C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos"
+    a_photo_dir = t_photo_dir
+#    t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures"
+#    a_photo_dir = u"/media/526b46db-af0b-4453-a835-de8854d51c2b/Photos/2000"
+#    photo_dir = None
     log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
-
-        
+    
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     
-#    db = pymongo.MongoClient().phototest2
-        
     start = time.time()
-    photos = PhotoDb(host, photo_dir, create_new = False)
-    photos.sync_db()
-    finished = time.time()-start
-    print "Elapsed time:", finished
-#    photos = get_photo_data(unicode(photo_dir), None)
-#    photos.print_tree()
-#    photos.print_flat()
-#    collection = pymongo.MongoClient().phototest.photo_archive
-#    collection.drop()
-#    collection.insert(photos.emit_records())
-#    pattern = re.compile('.*20140106 Istanbul.*')
-#    dog = db.find({'path': pattern})
-#    for line in dog:
-#       print line
-    print "Done!"
+    photos = PhotoDb(t_host, t_photo_dir, create_new = False)
+    photos.sync_db(t_photo_dir)
+#    print_empty_files(a_host, a_photo_dir)
+#    print_empty_dirs(a_host, a_photo_dir)
+#    print_unexpected_files(a_host, a_photo_dir)
+#    find_duplicates_in_archive(a_host, t_host, a_photo_dir, t_photo_dir)
+#    print_hybrid_dirs(a_host, a_photo_dir)
+#    stats = tree_stats(a_host, a_photo_dir)
+#    stats.print_tree_stats()
+    print_tree(a_host, a_photo_dir)
+    finished = time.time()-start    
+    print "------------------"
+    print "Done! - elapsed time {} seconds".format(finished)
+    sys.exit(1)
+    
+def clean_user_tags(host):  #Used only to repair database from bug.  Delete when dbs are clean and code tested
+    _unused_db, _unused_config, photos = set_up_db(host)
+    records = photos.find({'isdir':False})
+    for record in records:
+        if type(record['user_tags']) != type([]):
+            print record['user_tags']
+            photos.update({'path':record['path']}, {'$set' : {'user_tags' : []}})
     
 def time_now():
     '''
@@ -84,7 +100,7 @@ def time_now():
     t = datetime.datetime.now()
     return(time.mktime(t.timetuple()) + t.microsecond / 1E6)
     
-def set_up_db(host, create_new):
+def set_up_db(host, create_new = False):
     if host is None:
         print "Error - must define host (machine name)"
         sys.exit(1)
@@ -97,45 +113,46 @@ def set_up_db(host, create_new):
     except:
         print "Unknown problem connecting to mongodb"
         sys.exit(1)
-    if COLLECTION_CONFIG in db.collection_names():
-        config = db[COLLECTION_CONFIG]       
+    if _CONFIG in db.collection_names():
+        config = db[_CONFIG]       
     elif create_new:
-        config = db[COLLECTION_CONFIG]
-        config.update({CONFIG_TAG : HOST}, {'$set' : {HOST : socket.gethostname()}}, upsert = True)
+        config = db[_CONFIG]
+        config.update({_CONFIG : _HOST}, {'$set' : {_HOST : socket.gethostname()}}, upsert = True)
     else:
-        print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
+        print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(_CONFIG)
         sys.exit(1)
-    if create_new or COLLECTION_PHOTOS in db.collection_names():
-        photos = db[COLLECTION_PHOTOS]
+    if create_new or _PHOTOS in db.collection_names():
+        photos = db[_PHOTOS]
     else:
-        print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(COLLECTION_CONFIG)
+        print "Error - collection '{}' does not exist.  Maybe you meant to instantiate class with the create_new flag set?".format(_CONFIG)
         sys.exit(1)                 
     photos.ensure_index('path', unique = True)
+    photos.ensure_index('signature')
     return(db, config, photos)
         
 def check_host(config):
     host = socket.gethostname()
-    db_host_record = config.find_one({CONFIG_TAG : HOST})
-    if HOST not in db_host_record:
+    db_host_record = config.find_one({_CONFIG : _HOST})
+    if _HOST not in db_host_record:
         print "Error - no host listed for this database.  Exiting to prevent damage."
         sys.exit(1)
-    db_host = db_host_record[HOST]
+    db_host = db_host_record[_HOST]
     if host != db_host:
         print "Error - Host is {}, while database was built on {}.  Update do database not allowed on this host."
         sys.exit(1)    
         
 def check_db_clean(config):
-    states = config.find({DB_STATE_TAG : {'$exists' : True}}).sort("_id", pymongo.DESCENDING).limit(10)
+    states = config.find({_DB_STATE : {'$exists' : True}}).sort("_id", pymongo.DESCENDING).limit(10)
     if states.count() < 1:
         print "Error - database status not available; don't know if clean"
         #TODO: Figure out how to recover - probably regenerate whole thing
         sys.exit(1)
     state = states[0]
-    if state[DB_STATE_TAG] == DB_DIRTY:
+    if state[_DB_STATE] == _DIRTY:
         #TODO: figure out what to do to recover - probably regenerate whole thing
         print "Error - DB is dirty.  No recovery options implemented."
         sys.exit(1)
-    elif state[DB_STATE_TAG] == DB_CLEAN:
+    elif state[_DB_STATE] == _CLEAN:
         return
     else:
         print "Error - unknown if DB clean.  Check returned state of '{}'".format(state)
@@ -150,22 +167,32 @@ def stat_node(nodepath):
         sys.exit(1)
     return(file_stat)          
 
+def find_os_from_path_string(path):
+    if path.count('/') > 0:
+        return(_LINUX)
+    elif path.count('\\') > 0:
+        return(_WINDOWS)
+    elif path is None:
+        return(None)
+    else:
+        print("Error:  Path to top of tree contains no path separators, can't determine OS type.  Tree top received: {}".format(path))
+        sys.exit(1)
+    
 def make_tree_regex(top):
     '''
     Return regex that when queried will extract tree starting from top, independent of OS
     '''
-    if top.count('/') > 0: #Linux
+    os_type = find_os_from_path_string(top)
+    if os_type is None:
+        top_tree = '.*'
+    elif os_type == _LINUX:
         top_tree = '^' + top + '$|^' + top + '/.*'
-        top_regex = re.compile(top_tree)
-    elif top.count('\\') > 0: #Windows        
+    elif os_type == _WINDOWS:        
         path = re.sub(r'\\', r'\\\\', top)
         basepath = '^' + path
         children = '^' +  path + '\\\\.*' 
-        pattern = unicode(basepath + '|' + children)
-        top_regex = re.compile(pattern)
-    else:
-        print("Error:  Path to top of tree contains no path separators, can't determine OS type.  Tree top received: {}".format(top))
-    return top_regex
+        top_tree = unicode(basepath + '|' + children)
+    return re.compile(top_tree)
         
 def get_metadata_from_file(filename):
     KNOWN_NO_TAG_FILES = [".picasa.ini", "thumbs.db"]
@@ -184,7 +211,7 @@ def get_metadata_from_file(filename):
     except:
         logging.error("%s Unknown Error Trapped", repr(filename))
         return(None)
-    return(metadata) 
+    return(metadata)
     
 def get_timestamp_from_metadata(metadata):
     if 'Exif.Photo.DateTimeOriginal' in metadata.exif_keys:
@@ -197,15 +224,264 @@ def get_user_tags_from_metadata(metadata):
     if 'Xmp.dc.subject' in metadata.xmp_keys:
         return(metadata['Xmp.dc.subject'].value)
     else:
-        return(None)
-                   
+        return([])
+    
+def find_empty_files(host, top = None):  #TODO:  Should we check database is clean??
+    '''
+    Print list of empty files suitable for use in shell script to delete them  TODO:  Move them?
+    '''
+    _unused_db, _unused_config, photos = set_up_db(host)
+    emptylist = photos.find({'isdir' : False, 'path' : make_tree_regex(top), 'size' : long(0)})
+    return(emptylist)
+
+def print_empty_files(host, top = None):
+    records = find_empty_files(host, top)
+    print "#Number of empty files: {}".format(records.count())
+    for empty in records:
+        print "#rm {} # Size {}".format(empty['path'], empty['size'])
+    print "#--Done finding empty files---"
+
+def find_empty_dirs(host, top = None):
+    '''
+    Print list of empty directories suitable for use in shell script to delete them
+    '''
+    _unused_db, _unused_config, photos = set_up_db(host)  
+    emptylist = photos.find({'isdir' : True, 'filepaths' : [], 'dirpaths' : [], 'path' : make_tree_regex(top)},{'path' : 1, 'filepaths' : 1, 'dirpaths' : 1})
+    return(emptylist)
+    
+def print_empty_dirs(host, top = None):
+    emptylist = find_empty_dirs(host, top)
+    print "Number of empty dirs: {}".format(emptylist.count())
+    for empty in emptylist:
+        print "#rmdir {} # File list {}, Dir list {}".format(empty['path'], empty['filepaths'], empty['dirpaths'])
+    print "#--Done finding empty dirs---"
+
+def find_unexpected_files(host, top = None):  #This seems to work but is not well tested
+    '''
+    Find unexpected file types and return an array of records to them
+    '''
+    EXPECTED = ['\.jpg$', '\.png$', '\.picasa.ini$', 'thumbs.db$', '\.mov$', '\.avi$', '\.thm$', '\.bmp$', '\.gif$']
+    all_targets = ''
+    for target in EXPECTED:
+        all_targets = all_targets + target + "|"
+    all_targets = all_targets[:-1]
+    target_regex = re.compile(all_targets, re.IGNORECASE)
+    _unused_db, unused_config, photos = set_up_db(host)
+    records = photos.aggregate([
+                                 {'$match' : { 'path' : make_tree_regex(top)}},
+                                 {'$match' : {'isdir' : False}},
+                                 {'$match' : { 'path' : {'$not' : target_regex}}},
+                                 {'$project' : {'_id' : False, 'size' : True, 'path' : True}}
+                                ])
+    return(records['result'])
+
+def print_unexpected_files(host, top = None):  #This seems to work but is not well tested
+    '''
+    Print list of unexpected file types suitable for use in shell script to move them  #TODO:  Should call function that does move independent of OS, creating directory tree along the way
+    '''
+    records = find_unexpected_files(host, top)
+    print "#Number of unexpected type files: {}".format(len(records))
+    for record in records:
+        print("#rm {} # Size: {}".format(record['path'], record['size']))
+    print "#--Done finding unexpected files--"
+    
+def find_duplicates_in_archive(archive_host, target_host, top_archive = None, top_target = None):
+    _unused_archive, _unused_a_config, a_photos= set_up_db(archive_host)
+    _unused_target, _unused_a_config, t_photos = set_up_db(target_host)
+    t_regex = make_tree_regex(top_target)
+    a_regex = make_tree_regex(top_archive)
+    records = t_photos.find({'path' : t_regex, 'isdir' : False})
+    print "Finding duplicates..."
+    for record in records:
+#        print "=========="
+#        print "Local file: {}".format(record['path'])
+        match = a_photos.find_one({'path' : a_regex, 'signature' : record['signature']})
+        if match is None:
+#            print "{}: No match. Please upload."
+            pass
+        if record['path'] == match['path']: #skip self if comparing within same host and tree  TODO: check host too
+            pass
+        else:
+            if record['md5'] == match['md5']:
+                print "    Exact match: {}".format(match['path'])
+                pass
+            else:
+                print "Signature match: {}, archive tags: {} target tags: []".format(match['path'], match['user_tags'], record['user_tags'])
+                if record['user_tags'] == match['user_tags']:
+                    print "Signature match, tags match, MD5 different: {}".format(match['path'])
+                else:
+                    print "Signature match, tags different: {}".format(match['path'])
+    print "Done finding duplicates."
+
+def walk_db_tree(collection, top, topdown = True):
+    record = collection.find_one({'path' : top}, {'_id' : False, 'dirpaths' : True, 'filepaths' : True})
+    if record is None:
+        raise IndexError('No files found for db tree walk')
+    if topdown:
+        yield top, record['dirpaths'], record['filepaths']
+    for dirs in record['dirpaths']:
+        for t in walk_db_tree(collection, dirs):
+            yield t
+    if not topdown:
+        yield top, record['dirpaths'], record['filepaths']
+        
+def tree_depth(top):
+    os_type = find_os_from_path_string(top)
+    if os_type == _LINUX:
+        return(top.count('/'))
+    if os_type == _WINDOWS:
+        return(top.count('\\'))
+    if os_type is None:
+        return(0)
+        
+def print_tree(host, top):
+    '''Print tree from 'top' indenting each level'''
+    _unused_db, _unused_config, photos = set_up_db(host)
+    offset = tree_depth(top)
+    os_type = find_os_from_path_string(top)
+    if os_type == _LINUX:
+        basename = posixpath.basename
+    if os_type == _WINDOWS:
+        basename = ntpath.basename
+    indent = 4  #Number of spaces to indent printout
+    photo_count = photos.find({_PATH : make_tree_regex(top)}).count()
+    if photo_count is None:
+        print "No files found starting at {}".format(top)
+        return
+    else:
+        print "Walking tree from: {}, {} nodes found.".format(top, photo_count)
+        for dirpath, _unused_dirs, files in walk_db_tree(photos, top):
+            print '{}{}'.format(' ' * indent * (tree_depth(dirpath) - offset), basename(dirpath))
+            for f in files:
+                print '{}{}'.format(' ' * indent * (tree_depth(f) - offset), basename(f))
+                    
+# def find_duplicates_in_tree(host, host, top_archive = None, top_target = None):
+#     _unused_archive, _unused_a_config, photos= set_up_db(host)
+#     a_regex = make_tree_regex(top_archive)
+#     records = t_photos.find({'path' : a_regex, 'isdir' : False})
+#     for record in records:
+# #        print "=========="
+# #        print "Local file: {}".format(record['path'])
+#         match = photos.find_one({'path' : a_regex, 'signature' : record['signature']})
+#         if match is None:
+# #            print "{}: No match. Please upload."
+#             pass
+#         else:
+#             if record['md5'] == match['md5']:
+# #                print "    Exact match: {}".format(match['path'])
+#                 pass
+#             else:
+# #                print "Signature match: {}, archive tags: {} target tags: []".format(match['path'], match['user_tags'], record['user_tags'])
+#                 if record['user_tags'] == match['user_tags']:
+#                     print "Signature match, tags match, MD5 different: {}".format(match['path'])
+#                 else:
+#                     print "Signature match, tags different: {}".format(match['path'])                                
+
+class tree_stats():
+    def __init__(self, host, top):
+        _unused_db, self.config, self.photos = set_up_db(host)
+        self.top = top
+        self.top_regex = make_tree_regex(top)
+        self.total_nodes = 0
+        self.total_dirs = 0
+        self.total_files = 0
+        self.tagged_records = 0
+        self.unique_signatures = 0
+        self.unique_md5s = 0
+        self.compute_tree_stats()
+        self.signatures_iter = None
+        self.md5_iter = None
+        
+    def compute_tree_stats(self):
+        self.total_nodes = self.photos.find({'path' : self.top_regex}).count()
+        self.total_dirs = self.photos.find({'path' : self.top_regex, 'isdir' : True}).count()
+        self.total_files = self.photos.find({'path' : self.top_regex, 'isdir' : False}).count()
+        self.tagged_records = self.photos.find({'path' : self.top_regex, 'isdir' : False, 'user_tags' : {'$ne' : []}}).count()
+        self.signatures_iter = self.photos.aggregate([
+                                               { "$match" : {
+                                                            "path" : self.top_regex,
+                                                            "isdir" : False, 
+                                                            "signature" : { "$ne" : "" }
+                                                            }
+                                               },
+                                               {"$group" : {
+                                                           "_id" : "$signature"
+                                                           }
+                                                }
+                                              ])
+        if self.signatures_iter['ok'] != 1:
+            raise RuntimeError('Mongodb return code not = 1.  Got: {}'.format(self.signatures_iter['ok']))
+        self.unique_signatures = len(self.signatures_iter['result'])
+        self.md5_iter = self.photos.aggregate([
+                                           { "$match" : {
+                                                        "path" : self.top_regex,
+                                                        "isdir" : False,
+                                                        "md5" : { "$ne" : "" }
+                                                        }
+                                           },
+                                           {"$group" : {
+                                                       "_id" : "$md5"
+                                                       }
+                                            }
+                                          ])
+        if self.md5_iter['ok'] != 1:
+            raise RuntimeError('Mongodb return code not = 1.  Got: {}'.format(self.signatures_iter['ok']))
+        self.unique_md5s = len(self.md5_iter['result'])
+        
+    def print_tree_stats(self):
+        print "Stats for tree rooted at {}".format(self.top)
+        if self.total_nodes == 0:
+            print "No nodes (files or directories) found.  Aborting stats."
+            return
+        print("Total nodes: {}".format(self.total_nodes))
+        print("Total dirs: {}".format(self.total_dirs))
+        print("Total files: {}".format(self.total_files))
+        print("Total tagged: {}, {:.1%} of files".format(self.tagged_records, float(self.tagged_records)/self.total_files))
+        print("Unique signatures = {}, {} duplicates ({:.1%})".format(self.unique_signatures, self.total_files - self.unique_signatures, 1.0 - float(self.unique_signatures)/self.total_files))
+        print("Unique MD5s = {}, {} duplicates ({:.1%})".format(self.unique_md5s, self.total_files - self.unique_md5s, 1.0 - float(self.unique_md5s)/self.total_files))
+
+# def move_files(safe_top, path):
+#     #Test for OS here
+#     if _LINUX:
+#         #if dir does not exist:
+#         #    create dir
+#         #move file to safe_top\path
+#     elif WIN:
+#         #if dir does not exist
+#         #    create dir
+#         #move file to safe_top\path
+#     else:
+#         print "***FAIL*** Could not determine OS."
+                            
+# def find_md5_match_dirs(host, top):
+#     db, config, photos = set_up_db(host)
+#     tree_regex = make_tree_regex(top)
+#     dir_records = photos.find({'isdir' : True, 'dirpaths' : empty, 'filepaths' : not empty}, {'_id' : False, 'path' : True})
+#     for dir_record in dir_records:
+#         photos.find({'isdir' : False, 'path' : dir_record['path']})
+   
+def find_hybrid_dirs(host, top):  #Broken
+    #Look for dirs that have files and dirs in them (this shouldn't happen if the photo directory is clean)
+#    hybridlist = db.find({'$and': [{'$not' : {'filepaths' : '[]'}}, {'$not' : {'dirpaths' : '[]'}}]}, {'path' : 1, 'filepaths' : 1, 'dirpaths' : 1})
+    _unused_db, _unused_config, photos = set_up_db(host)
+    tree_regex = make_tree_regex(top)
+    hybridlist = photos.find({'isdir' : True, 'path' : tree_regex, 'filepaths' : {'$ne' : []}, 'dirpaths' : {'$ne' : []}}, {'_id' : 0, 'path' : 1, 'filepaths' : 1, 'dirpaths' : 1})
+    return(hybridlist)
+
+def print_hybrid_dirs(host, top):
+    hybridlist = find_hybrid_dirs(host, top)
+    print "Finding dirs that contain both files and directories.  Length of hybrid list:", hybridlist.count()
+    for hybrids in hybridlist:
+        print "#{} # File list {}, Dir list {}".format(hybrids['path'], hybrids['filepaths'], hybrids['dirpaths'])
+    print "#--Done finding hybrid directories"
+
 class PhotoDb(object):
     def __init__(self, host = None, root = None, create_new = False):    
         if root is None:
             print "Error - must define root node"
         self.root = os.path.normpath(root)
         self.start_time = 0  #Persistent variable for method in this class because I don't know a better way
-        db, self.config, self.photos = set_up_db(host, create_new)
+        _unused_db, self.config, self.photos = set_up_db(host, create_new)
         check_host(self.config)
         if not create_new:
             check_db_clean(self.config)
@@ -228,7 +504,7 @@ class PhotoDb(object):
         if top is None:
             top = self.root
         time.sleep(1) #Wait a second to make double-dog sure mongodb is caught up 
-        fresh_times = self.config.find().sort(FS_TRAVERSE_TIME_TAG, pymongo.DESCENDING).limit(10)
+        fresh_times = self.config.find().sort(_FS_TRAVERSE_TIME, pymongo.DESCENDING).limit(10)
         if fresh_times.count() < 1:
             #TODO: check latest time is associated with 'dirty' state and top paths are the same
             logging.error('ERROR: no file system fresh start time available.  Too dangerous to continue.')
@@ -246,9 +522,9 @@ class PhotoDb(object):
          
     def _mark_db_status(self, status):
         if status == 'dirty':
-            self.config.insert({DB_STATE_TAG : 'dirty', FS_TRAVERSE_TIME_TAG : time_now(), TRAVERSE_PATH_TAG : self.root})
+            self.config.insert({_DB_STATE : 'dirty', _FS_TRAVERSE_TIME : time_now(), _TRAVERSE_PATH : self.root})
         elif status == 'clean':
-            self.config.insert({DB_STATE_TAG : 'clean', FS_TRAVERSE_TIME_TAG : time_now(), TRAVERSE_PATH_TAG : self.root})
+            self.config.insert({_DB_STATE : 'clean', _FS_TRAVERSE_TIME : time_now(), _TRAVERSE_PATH : self.root})
         else:
             logging.error("Error: bad database status received.  Got: '{}'".format(status))
     
@@ -394,7 +670,7 @@ class PhotoDb(object):
             tags = get_metadata_from_file(photopath)
             if tags is None:
                 #logging.warn("Bad tags in: {0}".format(repr(photopath)))
-                user_tags = ''
+                user_tags = []
                 timestamp = datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S')
             else:
                 user_tags = get_user_tags_from_metadata(tags)
@@ -446,7 +722,6 @@ class PhotoDb(object):
                     signature = MD5sums.fileMD5sum(filepath)
         return(signature)
 
-
 #--------------------------------------------      
     
 #Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
@@ -466,9 +741,7 @@ class PhotoDb(object):
 #    except Usage, err:
 #        print >>sys.stderr, err.msg
 #        print >>sys.stderr, "for help use --help"
-#        return 2
-
-
+#        re
 
 if __name__ == "__main__":
     sys.exit(main())
