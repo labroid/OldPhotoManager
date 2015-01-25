@@ -51,35 +51,39 @@ _TRAVERSE_PATH = 'traverse_path'
 _LINUX = 'linux'
 _WINDOWS = 'windows'
 _PATH = 'path'
+_SIGNATURE = 'signature'
+_MD5 = 'md5'
+_ISDIR = 'isdir'
+_MD5_MATCH = 'md5_match'
+_SIG_MATCH = 'sig_match'
 
 def main():
+    clean_user_tags('mongodb://192.168.1.8/barney')
+    sys.exit(1)
     t_host = '4DAA1001519'
-    a_host = '4DAA1001519'
+    t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
+    t_photo_dir = u"C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\target"
+    a_photo_dir = u"C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\archive"
     
 #    a_host = 'barney'
-    t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
-    a_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
-    t_photo_dir = u"C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos"
-    a_photo_dir = t_photo_dir
-#    t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures"
 #    a_photo_dir = u"/media/526b46db-af0b-4453-a835-de8854d51c2b/Photos/2000"
-#    photo_dir = None
+    
+    host = t_host
+    photo_dir = t_photo_dir
+    
     log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
     
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
     logging.basicConfig(filename = log_file, format = LOG_FORMAT, level = logging.DEBUG, filemode = 'w')
     
     start = time.time()
-    photos = PhotoDb(t_host, t_photo_dir, create_new = False)
-    photos.sync_db(t_photo_dir)
-#    print_empty_files(a_host, a_photo_dir)
-#    print_empty_dirs(a_host, a_photo_dir)
-#    print_unexpected_files(a_host, a_photo_dir)
-#    find_duplicates_in_archive(a_host, t_host, a_photo_dir, t_photo_dir)
-#    print_hybrid_dirs(a_host, a_photo_dir)
-#    stats = tree_stats(a_host, a_photo_dir)
-#    stats.print_tree_stats()
-    print_tree(a_host, a_photo_dir)
+#    PhotoDb(t_host, t_photo_dir, create_new = False).sync_db()
+    print_empty_files(host, photo_dir)
+    print_empty_dirs(host, photo_dir)
+    print_unexpected_files(host, photo_dir)
+    print_hybrid_dirs(host, photo_dir)
+    stats = TreeStats(host, photo_dir).print_tree_stats()
+    print_duplicates_tree(t_host, t_host, a_photo_dir, t_photo_dir)
     finished = time.time()-start    
     print "------------------"
     print "Done! - elapsed time {} seconds".format(finished)
@@ -105,8 +109,8 @@ def set_up_db(host, create_new = False):
         print "Error - must define host (machine name)"
         sys.exit(1)
     try:
-        client = pymongo.MongoClient()
-        db = client[host]
+        db = pymongo.MongoClient(host)
+#         db = client[host]
     except pymongo.errors.ConnectionFailure:
         print "***ERROR*** Database connection failed.  Make sure mongod is running."
         sys.exit(1)        
@@ -129,7 +133,7 @@ def set_up_db(host, create_new = False):
     photos.ensure_index('path', unique = True)
     photos.ensure_index('signature')
     return(db, config, photos)
-        
+
 def check_host(config):
     host = socket.gethostname()
     db_host_record = config.find_one({_CONFIG : _HOST})
@@ -256,11 +260,11 @@ def print_empty_dirs(host, top = None):
         print "#rmdir {} # File list {}, Dir list {}".format(empty['path'], empty['filepaths'], empty['dirpaths'])
     print "#--Done finding empty dirs---"
 
-def find_unexpected_files(host, top = None):  #This seems to work but is not well tested
+def find_unexpected_files(host, top = None):
     '''
     Find unexpected file types and return an array of records to them
     '''
-    EXPECTED = ['\.jpg$', '\.png$', '\.picasa.ini$', 'thumbs.db$', '\.mov$', '\.avi$', '\.thm$', '\.bmp$', '\.gif$']
+    EXPECTED = ['\.jpg$', '\.png$', 'picasa.ini$', 'thumbs.db$', '\.mov$', '\.avi$', '\.thm$', '\.bmp$', '\.gif$']
     all_targets = ''
     for target in EXPECTED:
         all_targets = all_targets + target + "|"
@@ -275,7 +279,7 @@ def find_unexpected_files(host, top = None):  #This seems to work but is not wel
                                 ])
     return(records['result'])
 
-def print_unexpected_files(host, top = None):  #This seems to work but is not well tested
+def print_unexpected_files(host, top = None):
     '''
     Print list of unexpected file types suitable for use in shell script to move them  #TODO:  Should call function that does move independent of OS, creating directory tree along the way
     '''
@@ -285,34 +289,74 @@ def print_unexpected_files(host, top = None):  #This seems to work but is not we
         print("#rm {} # Size: {}".format(record['path'], record['size']))
     print "#--Done finding unexpected files--"
     
-def find_duplicates_in_archive(archive_host, target_host, top_archive = None, top_target = None):
+def find_duplicates(archive_host, target_host, top_archive = None, top_target = None):
     _unused_archive, _unused_a_config, a_photos= set_up_db(archive_host)
     _unused_target, _unused_a_config, t_photos = set_up_db(target_host)
     t_regex = make_tree_regex(top_target)
     a_regex = make_tree_regex(top_archive)
-    records = t_photos.find({'path' : t_regex, 'isdir' : False})
+    t_photos.find({}, {'$unset' : {_SIG_MATCH : '', _MD5_MATCH : ''}})  #Unset any previous match search
+    records = t_photos.find({_PATH : t_regex, _ISDIR : False})
     print "Finding duplicates..."
     for record in records:
-#        print "=========="
-#        print "Local file: {}".format(record['path'])
-        match = a_photos.find_one({'path' : a_regex, 'signature' : record['signature']})
+        match = a_photos.find_one({_PATH : a_regex, _SIGNATURE : record[_SIGNATURE]})
         if match is None:
-#            print "{}: No match. Please upload."
-            pass
-        if record['path'] == match['path']: #skip self if comparing within same host and tree  TODO: check host too
-            pass
+#            t_photos.update({_PATH : record[_PATH]}, {'$set' : {'unique' : True}})
+            pass  #No need to tag unique files
         else:
-            if record['md5'] == match['md5']:
-                print "    Exact match: {}".format(match['path'])
-                pass
+            if record[_PATH] == match[_PATH]: 
+                pass #skip self if comparing within same host and tree  TODO: check host too
             else:
-                print "Signature match: {}, archive tags: {} target tags: []".format(match['path'], match['user_tags'], record['user_tags'])
-                if record['user_tags'] == match['user_tags']:
-                    print "Signature match, tags match, MD5 different: {}".format(match['path'])
+                if record[_MD5] == match[_MD5]:
+                    t_photos.update({_PATH : record[_PATH]}, {'$set' : {_MD5_MATCH : match[_PATH]}})
                 else:
-                    print "Signature match, tags different: {}".format(match['path'])
+                    t_photos.update({_PATH : record[_PATH]}, {'$set' : {_SIG_MATCH : match[_PATH]}})
     print "Done finding duplicates."
-
+    
+def print_duplicates(archive_host, target_host, top_archive = None, top_target = None):
+    find_duplicates(archive_host, target_host, top_archive, top_target)
+    _unused_db, _unused_config, photos = set_up_db(target_host)
+    regex = make_tree_regex(top_target)
+#    unique_records = photos.find({_PATH : regex, '$exists' : {_MD5_MATCH : False}, '$exists' : {_SIG_MATCH : False}})
+    unique_records = photos.find({_PATH : regex, _MD5_MATCH : {'$exists' : False}, _SIG_MATCH : {'$exists': False}})
+    md5_records = photos.find({_PATH : regex, _MD5_MATCH : {'$exists' : True}})
+    sig_records = photos.find({_PATH : regex, _SIG_MATCH : {'$exists' : True}})
+    print("Match status for {} on {}".format(top_target, target_host))
+    for u in unique_records:
+        print "Unique: {}".format(u[_PATH])
+    for m in md5_records:
+        print "MD5 match: {} matches {}".format(m[_PATH], m[_MD5_MATCH])
+    for s in sig_records:
+        print "Signature match: {} matches {}".format(s[_PATH], s[_SIG_MATCH])
+        
+def print_duplicates_tree(archive_host, target_host, top_archive = None, top_target = None):
+    '''Print tree from 'top' indenting each level and showing duplicate status'''
+    find_duplicates(archive_host, target_host, top_archive, top_target)
+    _unused_db, _unused_config, photos = set_up_db(target_host)
+    offset = tree_depth(top_target)
+    os_type = find_os_from_path_string(top_target)
+    if os_type == _LINUX:
+        basename = posixpath.basename
+    if os_type == _WINDOWS:
+        basename = ntpath.basename
+    indent = 4  #Number of spaces to indent printout
+    photo_count = photos.find({_PATH : make_tree_regex(top_target)}).count()
+    if photo_count is None:
+        print "No files found starting at {}".format(top_target)
+        return
+    else:
+        print "Walking tree from: {}, {} nodes found.".format(top_target, photo_count)
+        for dirpath, _unused_dirs, files in walk_db_tree(photos, top_target):
+            print '{}{}'.format(' ' * indent * (tree_depth(dirpath) - offset), basename(dirpath))
+            for f in files:
+                record = photos.find_one({_PATH: f})
+                if _MD5_MATCH not in record and _SIG_MATCH not in record:
+                    print '{}Unique: {}'.format(' ' * indent * (tree_depth(f) - offset), basename(f))
+                else:
+                    if _MD5_MATCH in record:
+                        print '{}MD5 match: {} matches {}'.format(' ' * indent * (tree_depth(f) - offset), basename(f), record[_MD5_MATCH])
+                    elif _SIG_MATCH in record:
+                        print '{}Sig match: {} matches {}'.format(' ' * indent * (tree_depth(f) - offset), basename(f), record[_SIG_MATCH])
+                        
 def walk_db_tree(collection, top, topdown = True):
     record = collection.find_one({'path' : top}, {'_id' : False, 'dirpaths' : True, 'filepaths' : True})
     if record is None:
@@ -354,32 +398,11 @@ def print_tree(host, top):
             print '{}{}'.format(' ' * indent * (tree_depth(dirpath) - offset), basename(dirpath))
             for f in files:
                 print '{}{}'.format(' ' * indent * (tree_depth(f) - offset), basename(f))
-                    
-# def find_duplicates_in_tree(host, host, top_archive = None, top_target = None):
-#     _unused_archive, _unused_a_config, photos= set_up_db(host)
-#     a_regex = make_tree_regex(top_archive)
-#     records = t_photos.find({'path' : a_regex, 'isdir' : False})
-#     for record in records:
-# #        print "=========="
-# #        print "Local file: {}".format(record['path'])
-#         match = photos.find_one({'path' : a_regex, 'signature' : record['signature']})
-#         if match is None:
-# #            print "{}: No match. Please upload."
-#             pass
-#         else:
-#             if record['md5'] == match['md5']:
-# #                print "    Exact match: {}".format(match['path'])
-#                 pass
-#             else:
-# #                print "Signature match: {}, archive tags: {} target tags: []".format(match['path'], match['user_tags'], record['user_tags'])
-#                 if record['user_tags'] == match['user_tags']:
-#                     print "Signature match, tags match, MD5 different: {}".format(match['path'])
-#                 else:
-#                     print "Signature match, tags different: {}".format(match['path'])                                
-
-class tree_stats():
+                             
+class TreeStats():
     def __init__(self, host, top):
         _unused_db, self.config, self.photos = set_up_db(host)
+        self.host = host
         self.top = top
         self.top_regex = make_tree_regex(top)
         self.total_nodes = 0
@@ -429,6 +452,7 @@ class tree_stats():
         self.unique_md5s = len(self.md5_iter['result'])
         
     def print_tree_stats(self):
+        self.compute_tree_stats()
         print "Stats for tree rooted at {}".format(self.top)
         if self.total_nodes == 0:
             print "No nodes (files or directories) found.  Aborting stats."
