@@ -1,10 +1,19 @@
 # pylint: disable=line-too-long
 
 import re
+import logging
 import datetime
 import pymongo
 import photo_data
 
+log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
+logging.basicConfig(
+                    filename=log_file,
+                    format=LOG_FORMAT,
+                    level=logging.DEBUG,
+                    filemode='w'
+                    )
 
 host = 'localhost'
 repository = 'test_photos'
@@ -45,12 +54,12 @@ def test_collections_present():
 def test_tree_stats():
     stats = photo_data.TreeStats(database, test_photos_base)
     stats.print_tree_stats()
-    assert(stats.total_nodes == 37)
+    assert(stats.total_nodes == 38)
     assert(stats.total_dirs == 13)
-    assert(stats.total_files == 24)
+    assert(stats.total_files == 25)
     assert(stats.tagged_records == 14)
-    assert(stats.unique_signatures == 16)
-    assert(stats.unique_md5s == 16)
+    assert(stats.unique_signatures == 17)
+    assert(stats.unique_md5s == 18)
 
 
 def test_tags_extracted():
@@ -77,7 +86,7 @@ def test_sizes_extracted():
 
 def test_photo_md5s():
     sample_md5 = get_photo('unique_1_tags_date.JPG')['md5']
-    assert sample_md5 == 'ef1f34077aa82b009d7f58b6a84677fa'
+    assert sample_md5 == 'c77645d3ec1a43abc0f9bac4f9140ee4'
 
 
 def test_find_empty_files():
@@ -90,6 +99,42 @@ def test_find_empty_dirs():
     empty_dirs = photo_data.find_empty_dirs(database, test_photos_base)
     assert(empty_dirs.count() == 1)
     assert('empty_dir' in empty_dirs[0]['path'])
+
+
+def test_extract_frame_set(capsys):
+    photo_data.extract_picture_frame_set(database, test_photos_base, "SJJ Frame", 'test')
+    out, err = capsys.readouterr()
+    assert err == ''
+    assert 'unique_1_tags_date.JPG' in out
+
+
+def test_find_unexpected_files():
+    records = photo_data.find_unexpected_files(database, test_photos_base)
+    print type(records)
+    assert len(records) == 1
+    assert 'Strange file.dog' in records[0]['path']
+
+
+def test_find_duplicates():
+    photo_data.find_duplicates(database, database, test_photos_base + "\\archive", test_photos_base + "\\target")
+    md5records = database.photos.find({'md5_match': {'$exists': True}})
+    print "Done.  Printing {} md5records".format(md5records.count())
+    for record in md5records:
+        print "MD5 match: {}\n{}".format(record['path'], record['md5_match'])
+    sig_records = database.photos.find({'sig_match': {'$exists': True}})
+    for record in sig_records:
+        print "sig match: {}\n{}".format(record['path'], record['sig_match'])
+    assert False
+
+
+def test_find_hybrid_dirs():
+    records = photo_data.find_hybrid_dirs(database, test_photos_base)
+    print type(records)
+    for record in records:
+        assert 'duplicates' in record['path']
+        #Imperfect test as 'duplicates' could be in path, but adding to path is complcated with OS differences
+
+
 
 
 # class TestPhotoData(object):

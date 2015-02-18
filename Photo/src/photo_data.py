@@ -446,6 +446,7 @@ def find_duplicates(db_archive, db_target, top_archive=None, top_target=None):
         #match search  TODO:  Not sure this is correct.  Might need to be update with 'multi'
     records = db_target.photos.find({_PATH: t_regex, _ISDIR: False})
     for record in records:
+        print "Target:{}".format(record)
         match = db_archive.photos.find_one({_PATH: a_regex, _SIGNATURE: record[_SIGNATURE]})
         if match is None:
 #            t_photos.update({_PATH: record[_PATH]}, {'$set': {'unique': True}})
@@ -794,6 +795,7 @@ class PhotoDb(object):
                             }
                            )
         elif db_file['size'] != file_stat.st_size or db_file['mtime'] != file_stat.st_mtime:
+            logging.debug("File change detected: {}".format(repr(filepath)))
             self.photos.update(
                            {'path':db_file['path']},
                            {
