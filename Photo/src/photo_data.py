@@ -442,8 +442,13 @@ def find_duplicates(db_archive, db_target, top_archive=None, top_target=None):
     print "Finding duplicates..."
     t_regex = make_tree_regex(top_target)
     a_regex = make_tree_regex(top_archive)
-    db_target.photos.find({}, {'$unset': {_SIG_MATCH: '', _MD5_MATCH: ''}})  # Unset any previous \
-        #match search  TODO:  Not sure this is correct.  Might need to be update with 'multi'
+    result = db_target.photos.update(
+                            {},
+                            {'$unset': {_SIG_MATCH: '', _MD5_MATCH: ''}},
+                            upsert=False,
+                            multi=True
+                            )  # Unset any previous match search
+    print "clear result: {}".format(result)
     records = db_target.photos.find({_PATH: t_regex, _ISDIR: False})
     for record in records:
         print "Target:{}".format(record)
