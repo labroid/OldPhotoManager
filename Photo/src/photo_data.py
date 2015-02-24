@@ -40,6 +40,7 @@ import pyexiv2
 import socket
 import MD5sums
 import ntpath
+import itertools
 
 _CONFIG = 'config'
 _PHOTOS = 'photos'
@@ -59,12 +60,17 @@ _ISDIR = 'isdir'
 _MD5_MATCH = 'md5_match'
 _SIG_MATCH = 'sig_match'
 _COLLECTION = 'collection'
-
+_FILEPATHS = 'filepaths'
+_DIRPATHS = 'dirpaths'
+_SIZE = 'size'
+_USER_TAGS = 'user_tags'
+_MTIME = 'mtime'
 
 def main():
     t_host = 'localhost'
     t_repository = '4DAA1001519'
-    a_host = 'mongodb://192.168.1.8'
+#    a_host = 'mongodb://192.168.1.8'
+    a_host = t_host
     a_repository = 'barney'
     t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
 #    t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures"
@@ -88,7 +94,8 @@ def main():
 
     start = time.time()
     database = set_up_db(a_repository, a_host)
-    extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
+    dirs_with_no_tags(database, a_photo_dir)
+#    extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
 #    PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
 #    db = set_up_db(a_collection, a_host)
 #    print_empty_files(db, a_photo_dir)
@@ -113,13 +120,13 @@ def main():
 def clean_user_tags(database):  # Used only to repair database from bug.
                         # Delete when dbs are clean and code tested
     print "Cleaning user tags..."
-    records = database.photos.find({'isdir': False})
+    records = database.photos.find({_ISDIR: False})
     for record in records:
-        if type(record['user_tags']) != type([]):
-            print record['user_tags']
+        if type(record[_USER_TAGS]) != type([]):
+            print record[_USER_TAGS]
             database.photos.update(
-                             {'path': record['path']},
-                             {'$set': {'user_tags': []}}
+                             {_PATH: record[_PATH]},
+                             {'$set': {_USER_TAGS: []}}
                              )
     print "Done"
 
@@ -181,8 +188,8 @@ def set_up_db(repository, host='localhost', create_new=False):
             logging.error(error_message)
             raise(ValueError(error_message))
         photos = database[_PHOTOS]
-    photos.ensure_index('path', unique=True)
-    photos.ensure_index('signature')
+    photos.ensure_index(_PATH, unique=True)
+    photos.ensure_index(_SIGNATURE)
     return(database)
 
 
@@ -233,8 +240,18 @@ def stat_node(nodepath):
 
 
 def dirs_with_no_tags(database, top):
-    pass  # TODO: might be a nice function to have
-
+    photo_directories = database.photos.find({_ISDIR: True, _DIRPATHS: []})
+    no_tag_list = []
+    for directory in photo_directories:
+        user_tag_set = [x['user_tags'] for x in database.photos.find({_PATH: make_tree_regex(directory[_PATH]), _ISDIR: False})]
+        cumulative_tags = set(list(itertools.chain(*user_tag_set)))
+        if cumulative_tags == set([]):
+#            print "{} has no tags".format(directory[_PATH])
+            pass
+        else:
+#            print "{} has tags: {}".format(directory[_PATH], cumulative_tags)
+            no_tag_list.append(directory)
+    print "No tag list contains {} directories.".format(len(no_tag_list))
 
 def extract_picture_frame_set(database, top, tag, output_dir):  # TODO: Write test for this
     '''
@@ -242,8 +259,8 @@ def extract_picture_frame_set(database, top, tag, output_dir):  # TODO: Write te
     '''
     records = database.photos.aggregate(
                             [
-                             {'$match': {'user_tags': {'$in': [tag]}}},
-                             {'$sort': {'signature': 1}},
+                             {'$match': {_USER_TAGS: {'$in': [tag]}}},
+                             {'$sort': {_SIGNATURE: 1}},
                              { '$group':
                                  {
                                   '_id' : "$signature",
@@ -349,9 +366,9 @@ def find_empty_files(database, top=None):  # TODO:  Should we check database is 
     '''
     emptylist = database.photos.find(
                                      {
-                                      'isdir': False,
-                                      'path': make_tree_regex(top),
-                                      'size': long(0)
+                                      _ISDIR: False,
+                                      _PATH: make_tree_regex(top),
+                                      _SIZE: long(0)
                                       }
                                      )
     return(emptylist)
@@ -362,7 +379,7 @@ def print_empty_files(database, top=None):
     records = find_empty_files(database, top)
     print "#Number of empty files: {}".format(records.count())
     for empty in records:
-        print "#rm {} # Size {}".format(empty['path'], empty['size'])
+        print "#rm {} # Size {}".format(empty[_PATH], empty[_SIZE])
     print "#--Done finding empty files---"
 
 
@@ -372,15 +389,15 @@ def find_empty_dirs(database, top=None):
     '''
     emptylist = database.photos.find(
                                {
-                                'isdir': True,
-                                'filepaths': [],
-                                'dirpaths': [],
-                                'path': make_tree_regex(top)
+                                _ISDIR: True,
+                                _FILEPATHS: [],
+                                _DIRPATHS: [],
+                                _PATH: make_tree_regex(top)
                                 },
                                {
-                                'path': 1,
-                                'filepaths': 1,
-                                'dirpaths': 1
+                                _PATH: 1,
+                                _FILEPATHS: 1,
+                                _DIRPATHS: 1
                                 }
                                )
     return(emptylist)
@@ -392,7 +409,7 @@ def print_empty_dirs(database, top=None):
     print "Number of empty dirs: {}".format(emptylist.count())
     for empty in emptylist:
         print "#rmdir {} # File list {}, Dir list {}".format(
-                empty['path'], empty['filepaths'], empty['dirpaths'])
+                empty[_PATH], empty[_FILEPATHS], empty[_DIRPATHS])
     print "#--Done finding empty dirs---"
 
 
@@ -417,10 +434,10 @@ def find_unexpected_files(database, top=None):
     all_targets = all_targets[:-1]
     target_regex = re.compile(all_targets, re.IGNORECASE)
     records = database.photos.aggregate([
-                                 {'$match': {'path': make_tree_regex(top)}},
-                                 {'$match': {'isdir': False}},
-                                 {'$match': {'path': {'$not': target_regex}}},
-                                 {'$project': {'_id': False, 'size': True, 'path': True}}
+                                 {'$match': {_PATH: make_tree_regex(top)}},
+                                 {'$match': {_ISDIR: False}},
+                                 {'$match': {_PATH: {'$not': target_regex}}},
+                                 {'$project': {'_id': False, _SIZE: True, _PATH: True}}
                                 ])
     return(records['result'])
 
@@ -434,7 +451,7 @@ def print_unexpected_files(database, top=None):
     records = find_unexpected_files(database, top)
     print "# Number of unexpected type files: {}".format(len(records))
     for record in records:
-        print("#rm {} # Size: {}".format(record['path'], record['size']))
+        print("#rm {} # Size: {}".format(record[_PATH], record[_SIZE]))
     print "#--Done finding unexpected files--"
 
 
@@ -539,22 +556,22 @@ def print_duplicates_tree(db_archive, db_target, top_archive=None, top_target=No
 
 def walk_db_tree(collection, top, topdown=True):
     record = collection.find_one(
-                                 {'path': top},
+                                 {_PATH: top},
                                  {
                                   '_id': False,
-                                  'dirpaths': True,
-                                  'filepaths': True
+                                  _DIRPATHS: True,
+                                  _FILEPATHS: True
                                   }
                                  )
     if record is None:
         raise IndexError('No files found for db tree walk at {}'.format(top))
     if topdown:
-        yield top, record['dirpaths'], record['filepaths']
-    for dirs in record['dirpaths']:
+        yield top, record[_DIRPATHS], record[_FILEPATHS]
+    for dirs in record[_DIRPATHS]:
         for walk_iterator in walk_db_tree(collection, dirs, topdown):
             yield walk_iterator
     if not topdown:
-        yield top, record['dirpaths'], record['filepaths']
+        yield top, record[_DIRPATHS], record[_FILEPATHS]
 
 
 def tree_depth(path):
@@ -604,21 +621,21 @@ class TreeStats():
         self.md5_iter = None
 
     def compute_tree_stats(self):
-        self.total_nodes = self.database.photos.find({'path': self.top_regex}).count()
-        self.total_dirs = self.database.photos.find({'path': self.top_regex, 'isdir': True}).count()
-        self.total_files = self.database.photos.find({'path': self.top_regex, 'isdir': False}).count()
+        self.total_nodes = self.database.photos.find({_PATH: self.top_regex}).count()
+        self.total_dirs = self.database.photos.find({_PATH: self.top_regex, _ISDIR: True}).count()
+        self.total_files = self.database.photos.find({_PATH: self.top_regex, _ISDIR: False}).count()
         self.tagged_records = self.database.photos.find(
                                                   {
-                                                   'path': self.top_regex,
-                                                   'isdir': False,
-                                                   'user_tags': {'$ne': []}
+                                                   _PATH: self.top_regex,
+                                                   _ISDIR: False,
+                                                   _USER_TAGS: {'$ne': []}
                                                    }
                                                   ).count()
         self.signatures_iter = self.database.photos.aggregate([
                                                {"$match": {
-                                                            "path": self.top_regex,
-                                                            "isdir": False,
-                                                            "signature": {"$ne": ""}
+                                                            _PATH: self.top_regex,
+                                                            _ISDIR: False,
+                                                            _SIGNATURE: {"$ne": ""}
                                                             }
                                                },
                                                {"$group": {
@@ -632,9 +649,9 @@ class TreeStats():
         self.unique_signatures = len(self.signatures_iter['result'])
         self.md5_iter = self.database.photos.aggregate([
                                            {"$match": {
-                                                        "path": self.top_regex,
-                                                        "isdir": False,
-                                                        "md5": {"$ne": ""}
+                                                        _PATH: self.top_regex,
+                                                        _ISDIR: False,
+                                                        _MD5: {"$ne": ""}
                                                         }
                                            },
                                            {"$group": {
@@ -676,27 +693,27 @@ class TreeStats():
 # def find_md5_match_dirs(host, top):
 #     db, config, photos=set_up_db(host)
 #     tree_regex=make_tree_regex(top)
-#     dir_records=photos.find({'isdir': True, 'dirpaths': empty, 'filepaths': not empty}, {'_id': False, 'path': True})
+#     dir_records=photos.find({_ISDIR: True, _DIRPATHS: empty, _FILEPATHS: not empty}, {'_id': False, _PATH: True})
 #     for dir_record in dir_records:
-#         photos.find({'isdir': False, 'path': dir_record['path']})
+#         photos.find({_ISDIR: False, _PATH: dir_record[_PATH]})
 
 
 def find_hybrid_dirs(database, top):  # Broken
     # Look for dirs that have files and dirs in them (this shouldn't happen if the photo directory is clean)
-#    hybridlist=database.find({'$and': [{'$not': {'filepaths': '[]'}}, {'$not': {'dirpaths': '[]'}}]}, {'path': 1, 'filepaths': 1, 'dirpaths': 1})
+#    hybridlist=database.find({'$and': [{'$not': {_FILEPATHS: '[]'}}, {'$not': {_DIRPATHS: '[]'}}]}, {_PATH: 1, _FILEPATHS: 1, _DIRPATHS: 1})
     tree_regex = make_tree_regex(top)
     hybridlist = database.photos.find(
                                 {
-                                 'isdir': True,
-                                 'path': tree_regex,
-                                 'filepaths': {'$ne': []},
-                                 'dirpaths': {'$ne': []}
+                                 _ISDIR: True,
+                                 _PATH: tree_regex,
+                                 _FILEPATHS: {'$ne': []},
+                                 _DIRPATHS: {'$ne': []}
                                  },
                                  {
                                   '_id': 0,
-                                  'path': 1,
-                                  'filepaths': 1,
-                                  'dirpaths': 1
+                                  _PATH: 1,
+                                  _FILEPATHS: 1,
+                                  _DIRPATHS: 1
                                   }
                                 )
     return(hybridlist)
@@ -706,7 +723,7 @@ def print_hybrid_dirs(db, top):
     hybridlist = find_hybrid_dirs(db, top)
     print "Finding dirs that contain both files and directories.  Length of hybrid list:", hybridlist.count()
     for hybrids in hybridlist:
-        print "#{} # File list {}, Dir list {}".format(hybrids['path'], hybrids['filepaths'], hybrids['dirpaths'])
+        print "#{} # File list {}, Dir list {}".format(hybrids[_PATH], hybrids[_FILEPATHS], hybrids[_DIRPATHS])
     print "#--Done finding hybrid directories"
 
 
@@ -791,28 +808,28 @@ class PhotoDb(object):
             logging.debug("New File detected: {0}".format(repr(filepath)))
             self.photos.insert(
                            {
-                            'path': filepath,
-                            'isdir': False,
-                            'size': file_stat.st_size,
-                            'mtime': file_stat.st_mtime,
+                            _PATH: filepath,
+                            _ISDIR: False,
+                            _SIZE: file_stat.st_size,
+                            _MTIME: file_stat.st_mtime,
                             'in_archive': True,
                             'refresh_time': time_now()
                             }
                            )
-        elif db_file['size'] != file_stat.st_size or db_file['mtime'] != file_stat.st_mtime:
+        elif db_file[_SIZE] != file_stat.st_size or db_file[_MTIME] != file_stat.st_mtime:
             logging.debug("File change detected: {}".format(repr(filepath)))
             self.photos.update(
-                           {'path':db_file['path']},
+                           {_PATH:db_file[_PATH]},
                            {
                             '$set':{
-                                    'isdir':False,
-                                    'size':file_stat.st_size,
-                                    'md5':'',
-                                    'signature':'',
-                                    'mtime':file_stat.st_mtime,
+                                    _ISDIR:False,
+                                    _SIZE:file_stat.st_size,
+                                    _MD5:'',
+                                    _SIGNATURE:'',
+                                    _MTIME:file_stat.st_mtime,
                                     'timestamp':datetime.datetime.strptime('1700:1:1 00:00:00', '%Y:%m:%d %H:%M:%S'),
                                     'got_tags':False,
-                                    'user_tags':[],
+                                    _USER_TAGS:[],
                                     'in_archive':True,
                                     'refresh_time':time_now()
                                     }
@@ -820,22 +837,22 @@ class PhotoDb(object):
                            )
         else:
             self.photos.update(
-                           {'path': db_file['path']},
+                           {_PATH: db_file[_PATH]},
                            {'$set': {'refresh_time': time_now()}}
                            )
 
     def _update_dir_record(self, dirpath, dirpaths, filepaths):
-        db_dir = self.photos.find_one({'path': dirpath}, {'path': True, '_id': False})
+        db_dir = self.photos.find_one({_PATH: dirpath}, {_PATH: True, '_id': False})
         if db_dir is None:
             logging.debug("New directory detected: {0}".format(repr(dirpath)))
             db_dir = dirpath
         self.photos.update(
-                       {'path': dirpath},
+                       {_PATH: dirpath},
                        {
-                        'path': dirpath,
-                        'isdir': True,
-                        'dirpaths': dirpaths,
-                        'filepaths': filepaths,
+                        _PATH: dirpath,
+                        _ISDIR: True,
+                        _DIRPATHS: dirpaths,
+                        _FILEPATHS: filepaths,
                         'in_archive': True,
                         'refresh_time': time_now()
                         },
@@ -867,18 +884,18 @@ class PhotoDb(object):
                              {
                              '$and': [
                                         {
-                                         'path': regex
+                                         _PATH: regex
                                          },
                                          {
-                                          'isdir': False
+                                          _ISDIR: False
                                           },
                                           {
                                             '$or': [
                                                      {
-                                                      'md5': {'$exists': False}
+                                                      _MD5: {'$exists': False}
                                                      },
                                                      {
-                                                      'md5': ''
+                                                      _MD5: ''
                                                       }
                                                      ]
                                           },
@@ -887,15 +904,15 @@ class PhotoDb(object):
                               },
                              {
                               '_id': False,
-                              'path': True
+                              _PATH: True
                               },
                               timeout=False
                               )
         logging.info("Number of files for MD5 update: {}".format(files.count()))
         for n, path in enumerate(files, start=1):
-            logging.info('Computing MD5 {} for: {}'.format(n, repr(path['path'])))
-            md5sum = MD5sums.fileMD5sum(path['path'])
-            self.photos.update({'path': path['path']}, {'$set': {'md5': md5sum}})
+            logging.info('Computing MD5 {} for: {}'.format(n, repr(path[_PATH])))
+            md5sum = MD5sums.fileMD5sum(path[_PATH])
+            self.photos.update({_PATH: path[_PATH]}, {'$set': {_MD5: md5sum}})
         logging.info("Done computing missing md5 sums.")
 
     def _update_tags(self, top=None):
@@ -905,21 +922,21 @@ class PhotoDb(object):
         tree_regex = make_tree_regex(top)
         files = self.photos.find(
                               {
-                               'path': tree_regex,
-                               'isdir': False,
+                               _PATH: tree_regex,
+                               _ISDIR: False,
                                '$or': [
                                         {'got_tags': {'$exists': False}},
                                         {'got_tags': False}
                                         ]
                                },
                                {
-                                '_id': False, 'path': True
+                                '_id': False, _PATH: True
                                 },
                              timeout=False)
         total_files = files.count()
         for file_count, photo_record in enumerate(files, start=1):
             self._monitor_tag_progress(total_files, file_count)
-            photopath = photo_record['path']
+            photopath = photo_record[_PATH]
             tags = get_metadata_from_file(photopath)
             if tags is None:
                 # logging.warn("Bad tags in: {0}".format(repr(photopath)))
@@ -930,12 +947,12 @@ class PhotoDb(object):
                 timestamp = get_timestamp_from_metadata(tags)
             signature = self._get_file_signature(tags, photopath)  # Get signature should now do the thumbnailMD5 and if not find another signature.
             self.photos.update(
-                               {'path': photopath},
+                               {_PATH: photopath},
                                 {'$set':
                                  {
-                                  'user_tags': user_tags,
+                                  _USER_TAGS: user_tags,
                                   'timestamp': timestamp,
-                                  'signature': signature,
+                                  _SIGNATURE: signature,
                                   'got_tags': True
                                  }
                                 }
@@ -968,9 +985,9 @@ class PhotoDb(object):
             if str.lower(os.path.splitext(filepath)[1].encode()) in TEXT_FILES:
                 signature = MD5sums.text_file_MD5_signature(filepath)
             else:
-                record = self.photos.find_one({'path': filepath})
-                if 'md5' in record:
-                    signature = record['md5']
+                record = self.photos.find_one({_PATH: filepath})
+                if _MD5 in record:
+                    signature = record[_MD5]
                 else:
                     logging.warning("MD5 was missing on this record.  Strange...")
                     signature = MD5sums.fileMD5sum(filepath)
