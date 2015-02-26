@@ -243,7 +243,14 @@ def dirs_with_no_tags(database, top):
     photo_directories = database.photos.find({_ISDIR: True, _DIRPATHS: []})
     no_tag_list = []
     for directory in photo_directories:
-        user_tag_set = [x['user_tags'] for x in database.photos.find({_PATH: make_tree_regex(directory[_PATH]), _ISDIR: False})]
+        user_tag_set = [
+                        x['user_tags'] for x in database.photos.find(
+                                             {
+                                              _PATH: make_tree_regex(directory[_PATH]),
+                                              _ISDIR: False
+                                               }
+                                             )
+                        ]
         cumulative_tags = set(list(itertools.chain(*user_tag_set)))
         if cumulative_tags == set([]):
 #            print "{} has no tags".format(directory[_PATH])
@@ -252,6 +259,29 @@ def dirs_with_no_tags(database, top):
 #            print "{} has tags: {}".format(directory[_PATH], cumulative_tags)
             no_tag_list.append(directory)
     print "No tag list contains {} directories.".format(len(no_tag_list))
+
+
+def dirs_with_all_match(database, top):  # TODO: This is a framework and is totally wrong
+    photo_directories = database.photos.find({_ISDIR: True, _DIRPATHS: []})
+    no_tag_list = []
+    for directory in photo_directories:
+        user_tag_set = [
+                        x['user_tags'] for x in database.photos.find(
+                                             {
+                                              _PATH: make_tree_regex(directory[_PATH]),
+                                              _ISDIR: False
+                                               }
+                                             )
+                        ]
+        cumulative_tags = set(list(itertools.chain(*user_tag_set)))
+        if cumulative_tags == set([]):
+#            print "{} has no tags".format(directory[_PATH])
+            pass
+        else:
+#            print "{} has tags: {}".format(directory[_PATH], cumulative_tags)
+            no_tag_list.append(directory)
+    print "No tag list contains {} directories.".format(len(no_tag_list))
+
 
 def extract_picture_frame_set(database, top, tag, output_dir):  # TODO: Write test for this
     '''
