@@ -5,6 +5,7 @@ import logging
 import datetime
 import pymongo
 import photo_data
+from db_photo_functions import dirs_by_no_tags
 
 log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
@@ -140,5 +141,5 @@ def test_find_hybrid_dirs():
 
 
 def test_dirs_with_no_tags():
-    photo_data.dirs_with_no_tags(database, test_photos_base)
-    assert(False)
+    no_tags = photo_data.dirs_by_no_tags(database, test_photos_base)
+    assert len(no_tags) == 6

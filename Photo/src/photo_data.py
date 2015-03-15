@@ -94,7 +94,13 @@ def main():
 
     start = time.time()
     database = set_up_db(a_repository, a_host)
-    dirs_with_no_tags(database, a_photo_dir)
+    no_tags, tagged = dirs_by_no_tags(database, a_photo_dir)
+    print "***NO TAGS***"
+    for path in no_tags.keys():
+        print path, no_tags[path]
+    print "***TAGS***"
+    for path in tagged.keys():
+        print path, tagged[path]
 #    extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
 #    PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
 #    db = set_up_db(a_collection, a_host)
@@ -203,7 +209,7 @@ def check_host(config):
     repository_host = repository_host_record[_HOST]
     if current_host != repository_host:
         error_message = "Error - Host is {}, while database was built on {}.  "\
-               "Update to database not allowed on this host.".format(current_host, repository_host)
+            "Update to database not allowed on this host.".format(current_host, repository_host)
         logging.error(error_message)
         raise(ValueError(error_message))
 
@@ -239,9 +245,10 @@ def stat_node(nodepath):
     return(file_stat)
 
 
-def dirs_with_no_tags(database, top):
+def dirs_by_no_tags(database, top):
     photo_directories = database.photos.find({_ISDIR: True, _DIRPATHS: []})
-    no_tag_list = []
+    no_tag_dict = {}
+    tagged_dict = {}
     for directory in photo_directories:
         user_tag_set = [
                         x['user_tags'] for x in database.photos.find(
@@ -253,12 +260,10 @@ def dirs_with_no_tags(database, top):
                         ]
         cumulative_tags = set(list(itertools.chain(*user_tag_set)))
         if cumulative_tags == set([]):
-#            print "{} has no tags".format(directory[_PATH])
-            pass
+            no_tag_dict[directory[_PATH]] = cumulative_tags
         else:
-#            print "{} has tags: {}".format(directory[_PATH], cumulative_tags)
-            no_tag_list.append(directory)
-    print "No tag list contains {} directories.".format(len(no_tag_list))
+            tagged_dict[directory[_PATH]] = cumulative_tags
+    return no_tag_dict, tagged_dict
 
 
 def dirs_with_all_match(database, top):  # TODO: This is a framework and is totally wrong
@@ -275,13 +280,10 @@ def dirs_with_all_match(database, top):  # TODO: This is a framework and is tota
                         ]
         cumulative_tags = set(list(itertools.chain(*user_tag_set)))
         if cumulative_tags == set([]):
-#            print "{} has no tags".format(directory[_PATH])
             pass
         else:
-#            print "{} has tags: {}".format(directory[_PATH], cumulative_tags)
             no_tag_list.append(directory)
-    print "No tag list contains {} directories.".format(len(no_tag_list))
-
+    return no_tag_list
 
 def extract_picture_frame_set(database, top, tag, output_dir):  # TODO: Write test for this
     '''

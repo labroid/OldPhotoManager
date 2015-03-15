@@ -92,7 +92,7 @@ def check_user_tags(photos, top, fix = False):
             not_tagged += 1
     return(tagged, not_tagged)
                   
-def dirs_with_no_tags(top):
+def dirs_by_no_tags(top):
     pass
     
 def create_md5_dict(photos, top):
