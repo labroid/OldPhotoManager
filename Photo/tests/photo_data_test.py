@@ -142,4 +142,4 @@ def test_find_hybrid_dirs():
 
 def test_dirs_with_no_tags():
     no_tags = photo_data.dirs_by_no_tags(database, test_photos_base)
-    assert len(no_tags) == 6
+    assert len(no_tags) == 2

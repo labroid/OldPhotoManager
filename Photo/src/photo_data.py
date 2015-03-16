@@ -29,7 +29,6 @@ data model for node in database (not all are present in a given node):
 # pylint: disable=line-too-long
 
 import sys
-import os
 import time
 import datetime
 import re
@@ -102,11 +101,11 @@ def main():
     print "***TAGS***"
     for path in tagged.keys():
         print path, tagged[path]
-    #    extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
-    #    PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
-    #    db = set_up_db(a_collection, a_host)
-    #    print_empty_files(db, a_photo_dir)
-    #    print_empty_dirs(db, a_photo_dir)
+    # extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
+    # PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
+    # db = set_up_db(a_collection, a_host)
+    # print_empty_files(db, a_photo_dir)
+    # print_empty_dirs(db, a_photo_dir)
     #    print_unexpected_files(db, a_photo_dir)
     #    print_hybrid_dirs(db, a_photo_dir)
     #    stats = TreeStats(db, a_photo_dir).print_tree_stats()
@@ -117,11 +116,11 @@ def main():
     print "Done"
     sys.exit(0)
 
-    print_duplicates_tree(a_host, t_host, a_photo_dir, t_photo_dir)
-    finished = time.time() - start
-    print "------------------"
-    print "Done! - elapsed time {} seconds".format(finished)
-    sys.exit(1)
+    # print_duplicates_tree(a_host, t_host, a_photo_dir, t_photo_dir)
+    # finished = time.time() - start
+    # print "------------------"
+    # print "Done! - elapsed time {} seconds".format(finished)
+    # sys.exit(1)
 
 
 def clean_user_tags(database):  # Used only to repair database from bug.
@@ -129,7 +128,7 @@ def clean_user_tags(database):  # Used only to repair database from bug.
     print "Cleaning user tags..."
     records = database.photos.find({ISDIR: False})
     for record in records:
-        if type(record[USER_TAGS]) != type([]):
+        if isinstance(record[USER_TAGS], list):
             print record[USER_TAGS]
             database.photos.update(
                 {PATH: record[PATH]},
@@ -247,7 +246,7 @@ def stat_node(nodepath):
 
 
 def dirs_by_no_tags(database, top):
-    photo_directories = database.photos.find({ISDIR: True, DIRPATHS: []})
+    photo_directories = database.photos.find({PATH: make_tree_regex(top), ISDIR: True, DIRPATHS: []})
     no_tag_dict = {}
     tagged_dict = {}
     for directory in photo_directories:
@@ -268,7 +267,7 @@ def dirs_by_no_tags(database, top):
 
 
 def dirs_with_all_match(database, top):  # TODO: This is a framework and is totally wrong
-    photo_directories = database.photos.find({ISDIR: True, DIRPATHS: []})
+    photo_directories = database.photos.find({PATH: make_tree_regex(top), ISDIR: True, DIRPATHS: []})
     no_tag_list = []
     for directory in photo_directories:
         user_tag_set = [
@@ -293,13 +292,16 @@ def extract_picture_frame_set(database, top, tag, output_dir):  # TODO: Write te
     """
     records = database.photos.aggregate(
         [
-            {'$match': {USER_TAGS: {'$in': [tag]}}},
+            {'$match': {
+                USER_TAGS: {'$in': [tag]},
+                PATH: make_tree_regex(top)
+                }
+             },
             {'$sort': {SIGNATURE: 1}},
-            {'$group':
-                 {
-                     '_id': "$signature",
-                     'firstPath': {'$first': '$path'}
-                 }
+            {'$group': {
+                '_id': "$signature",
+                'firstPath': {'$first': '$path'}
+                }
              },
             {'$project': {'firstPath': 1}}
         ])
@@ -339,7 +341,7 @@ def make_tree_regex(top):
         children = '^' + path + '\\\\.*'
         top_tree = unicode(basepath + '|' + children)
     else:
-        top_tree = None
+        top_tree = '.*'
     return re.compile(top_tree)
 
 
@@ -678,28 +680,26 @@ class TreeStats():
                 PATH: self.top_regex,
                 ISDIR: False,
                 SIGNATURE: {"$ne": ""}
-            }
+                }
              },
-            {"$group": {
-                "_id": "$signature"
-            }
-             }
-        ])
+            {"$group": {"_id": "$signature"}}])
         if self.signatures_iter['ok'] != 1:
             raise RuntimeError('Mongodb return code not=1.  Got: {}'.format(
                 self.signatures_iter['ok']))
         self.unique_signatures = len(self.signatures_iter['result'])
         self.md5_iter = self.database.photos.aggregate([
-            {"$match": {
-                PATH: self.top_regex,
-                ISDIR: False,
-                MD5: {"$ne": ""}
+            {
+                "$match": {
+                    PATH: self.top_regex,
+                    ISDIR: False,
+                    MD5: {"$ne": ""}
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$md5"
+                }
             }
-             },
-            {"$group": {
-                "_id": "$md5"
-            }
-             }
         ])
         if self.md5_iter['ok'] != 1:
             raise RuntimeError('Mongodb return code not=1.  Got: {}'.format(
@@ -736,20 +736,21 @@ class TreeStats():
 # #if dir does not exist
 # #    create dir
 # #move file to safe_top\path
-#     else:
-#         print "***FAIL*** Could not determine OS."
+# else:
+# print "***FAIL*** Could not determine OS."
 
 # def find_md5_match_dirs(host, top):
-#     db, config, photos=set_up_db(host)
-#     tree_regex=make_tree_regex(top)
-#     dir_records=photos.find({_ISDIR: True, _DIRPATHS: empty, _FILEPATHS: not empty}, {'_id': False, _PATH: True})
+# db, config, photos=set_up_db(host)
+# tree_regex=make_tree_regex(top)
+# dir_records=photos.find({_ISDIR: True, _DIRPATHS: empty, _FILEPATHS: not empty}, {'_id': False, _PATH: True})
 #     for dir_record in dir_records:
 #         photos.find({_ISDIR: False, _PATH: dir_record[_PATH]})
 
 
 def find_hybrid_dirs(database, top):  # Broken
     # Look for dirs that have files and dirs in them (this shouldn't happen if the photo directory is clean)
-    #    hybridlist=database.find({'$and': [{'$not': {_FILEPATHS: '[]'}}, {'$not': {_DIRPATHS: '[]'}}]}, {_PATH: 1, _FILEPATHS: 1, _DIRPATHS: 1})
+    #    hybridlist=database.find({'$and': [{'$not': {_FILEPATHS: '[]'}},
+    #       {'$not': {_DIRPATHS: '[]'}}]}, {_PATH: 1, _FILEPATHS: 1, _DIRPATHS: 1})
     tree_regex = make_tree_regex(top)
     hybridlist = database.photos.find(
         {
@@ -812,8 +813,8 @@ class PhotoDb(object):
             logging.error(error_message)
             raise (ValueError, error_message)
         if most_recent_records[0][TRAVERSE_PATH] != top:
-            error_message = 'ERROR: path being pruned "{}" does not match most recent database filesystem sync with {}'.format(
-                top, most_recent_records[0][TRAVERSE_PATH])
+            error_message = 'ERROR: path being pruned "{}" does not match most recent database filesystem sync with {}' \
+                .format(top, most_recent_records[0][TRAVERSE_PATH])
             logging.error(error_message)
             raise (ValueError, error_message)
         fresh_time = most_recent_records[0][FS_TRAVERSE_TIME]
@@ -824,8 +825,8 @@ class PhotoDb(object):
             logging.info("Removing records for node: {}".format(remove_path))
             rm_stat = self.photos.remove({PATH: remove_path})
             if rm_stat['ok'] != 1:
-                error_message = "Error - expected to remove record {} from database but database returned following: {}".format(
-                    remove_path, rm_stat)
+                error_message = "Error - expected to remove record {} from database but database returned " \
+                                "following: {}".format(remove_path, rm_stat)
                 print(error_message)
                 logging.error(error_message)
 
@@ -851,7 +852,8 @@ class PhotoDb(object):
     @staticmethod
     def _walk_error(walk_err):
         print "Error {}:{}".format(walk_err.errno,
-                                   walk_err.strerror)  # TODO: Maybe some better error trapping here...and do we need to encode strerror if it might contain unicode??
+                                   walk_err.strerror)  # TODO: Maybe some better error trapping here...and do we
+        #  need to encode strerror if it might contain unicode??
         raise
 
     def _update_file_record(self, filepath):
@@ -998,17 +1000,16 @@ class PhotoDb(object):
             else:
                 user_tags = get_user_tags_from_metadata(tags)
                 timestamp = get_timestamp_from_metadata(tags)
-            signature = self._get_file_signature(tags,
-                                                 photopath)  # Get signature should now do the thumbnailMD5 and if not find another signature.
+            signature = self._get_file_signature(tags, photopath)  # Get signature should now do the thumbnailMD5
+            # and if not find another signature.
             self.photos.update(
                 {PATH: photopath},
-                {'$set':
-                     {
-                         USER_TAGS: user_tags,
-                         'timestamp': timestamp,
-                         SIGNATURE: signature,
-                         'got_tags': True
-                     }
+                {'$set': {
+                    USER_TAGS: user_tags,
+                    'timestamp': timestamp,
+                    SIGNATURE: signature,
+                    'got_tags': True
+                    }
                  }
             )
         logging.info('Done updating file tags.')
@@ -1023,18 +1024,16 @@ class PhotoDb(object):
             elapsed_time = time_now() - self.start_time
             total_time_projected = float(elapsed_time) / float(file_count) * total_files
             time_remaining = float(elapsed_time) / float(file_count) * float(total_files - file_count)
-            logging.info(
-                "{0} of {1}={2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".format(file_count, total_files,
-                                                                                          1.0 * file_count / total_files * 100.0,
-                                                                                          elapsed_time, str(
-                        datetime.timedelta(seconds=time_remaining)), str(
-                        datetime.timedelta(seconds=total_time_projected))))
+            logging.info("{0} of {1}={2:.2f}%, {3:.1f} seconds, time remaining: {4} of {5}".
+                         format(file_count, total_files, 1.0 * file_count / total_files * 100.0, elapsed_time,
+                                str(datetime.timedelta(seconds=time_remaining)),
+                                str(datetime.timedelta(seconds=total_time_projected))))
         if file_count == total_files:
             elapsed_time = time_now() - self.start_time
             logging.info(
-                "Tags extracted: {0}.  Elapsed time: {1:.0g} seconds or {2:.0g} ms per file={3:.0g} for 100k files".format(
-                    file_count, elapsed_time, elapsed_time / total_files * 1000.0,
-                    elapsed_time / total_files * 100000.0 / 60.0))
+                "Tags extracted: {0}.  Elapsed time: {1:.0g} seconds or {2:.0g} ms per file={3:.0g} "
+                "for 100k files".format(file_count, elapsed_time, elapsed_time / total_files * 1000.0,
+                                        elapsed_time / total_files * 100000.0 / 60.0))
         return
 
     def _get_file_signature(self, metadata, filepath):
@@ -1057,12 +1056,12 @@ class PhotoDb(object):
 
 # --------------------------------------------
 
-#Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
-#class Usage(Exception):
+# Stole this main from Guido van van Rossum at http://www.artima.com/weblogs/viewpost.jsp?thread=4829
+# class Usage(Exception):
 #    def __init__(self, msg):
 #        self.msg='''Usage:  get_photo_data [-p pickle_path] [-l log_file] photos_path'''
 #
-#def main(argv=None):
+# def main(argv=None):
 #    if argv is None:
 #        argv=sys.argv
 #    try:
