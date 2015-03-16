@@ -29,17 +29,20 @@ data model for node in database (not all are present in a given node):
 # pylint: disable=line-too-long
 
 import sys
+import os
 import time
 import datetime
 import re
 import logging
 import posixpath
-import pymongo
-import pyexiv2
 import socket
-import MD5sums
 import ntpath
 import itertools
+import pymongo
+import pyexiv2
+
+from photodb import MD5sums
+
 
 CONFIG = 'config'
 PHOTOS = 'photos'
@@ -110,9 +113,9 @@ def main():
     #    print_hybrid_dirs(db, a_photo_dir)
     #    stats = TreeStats(db, a_photo_dir).print_tree_stats()
     #    print_tree(db, a_photo_dir)
-    #    db_archive = set_up_db(a_collection, a_host)
-    #    db_target = set_up_db(t_collection, t_host)
-    #    print_duplicates_tree(db_archive, db_target, a_photo_dir, t_photo_dir)
+#    db_archive = set_up_db(a_collection, a_host)
+#    db_target = set_up_db(t_collection, t_host)
+#    print_duplicates_tree(db_archive, db_target, a_photo_dir, t_photo_dir)
     print "Done"
     sys.exit(0)
 
@@ -268,7 +271,7 @@ def dirs_by_no_tags(database, top):
 
 def dirs_with_all_match(database, top):  # TODO: This is a framework and is totally wrong
     photo_directories = database.photos.find({PATH: make_tree_regex(top), ISDIR: True, DIRPATHS: []})
-    no_tag_list = []
+    all_match_list = []
     for directory in photo_directories:
         user_tag_set = [
             x['user_tags'] for x in database.photos.find(
@@ -494,43 +497,47 @@ def print_unexpected_files(database, top=None):
     print "#--Done finding unexpected files--"
 
 
-def find_duplicates(db_archive, db_target, top_archive=None, top_target=None):
+def find_and_set_duplicates(db_archive, db_target, top_archive=None, top_target=None):
     print "Finding duplicates..."
     t_regex = make_tree_regex(top_target)
     a_regex = make_tree_regex(top_archive)
+    # Unset any previous match search
     result = db_target.photos.update(
         {},
         {'$unset': {SIG_MATCH: '', MD5_MATCH: ''}},
         upsert=False,
         multi=True
-    )  # Unset any previous match search
+    )
     print "clear result: {}".format(result)
     records = db_target.photos.find({PATH: t_regex, ISDIR: False})
-    for record in records:
+    for record in records:  #What if tops are same does this not find itself only as opposed to potential other match?
         print "Target:{}".format(record)
-        match = db_archive.photos.find_one({PATH: a_regex, SIGNATURE: record[SIGNATURE]})
-        if match is None:
-            # t_photos.update({_PATH: record[_PATH]}, {'$set': {'unique': True}})
-            pass  # No need to tag unique files
-        else:
+        matches = db_archive.photos.find({PATH: a_regex, SIGNATURE: record[SIGNATURE]})
+        MD5list = []
+        siglist = []
+        for match in matches:
             if record[PATH] == match[PATH]:
-                pass  # skip self if comparing within same host and tree  TODO: check host too
+                pass  # skip self (happens if comparing within same host and tree)  TODO: check host too
             else:
                 if record[MD5] == match[MD5]:
-                    db_target.photos.update(
-                        {PATH: record[PATH]},
-                        {'$set': {MD5_MATCH: match[PATH]}}
-                    )
+                    MD5list.append(record[PATH])
                 else:
-                    db_target.photos.update(
-                        {PATH: record[PATH]},
-                        {'$set': {SIG_MATCH: match[PATH]}}
-                    )
+                    siglist.append(match[PATH])
+        if MD5list:
+            db_target.photos.update(
+                {PATH: record[PATH]},
+                {'$set': {MD5_MATCH: MD5list}}
+            )
+        if siglist:
+            db_target.photos.update(
+                {PATH: record[PATH]},
+                {'$set': {SIG_MATCH: siglist}}
+            )
     print "Done finding duplicates."
 
 
 def print_duplicates(db_archive, db_target, top_archive=None, top_target=None):
-    find_duplicates(db_archive, db_target, top_archive, top_target)
+    find_and_set_duplicates(db_archive, db_target, top_archive, top_target)
     regex = make_tree_regex(top_target)
     unique_records = db_target.photos.find(
         {
@@ -561,7 +568,7 @@ def print_duplicates(db_archive, db_target, top_archive=None, top_target=None):
 
 def print_duplicates_tree(db_archive, db_target, top_archive=None, top_target=None):
     """Print tree from 'top' indenting each level and showing duplicate status"""
-    find_duplicates(db_archive, db_target, top_archive, top_target)
+    find_and_set_duplicates(db_archive, db_target, top_archive, top_target)
     offset = tree_depth(top_target)
     os_type = find_os_from_path_string(top_target)
     if os_type == LINUX:

@@ -3,9 +3,11 @@
 import re
 import logging
 import datetime
+
 import pymongo
-import photo_data
-from db_photo_functions import dirs_by_no_tags
+
+from photodb import photo_data
+
 
 log_file = "C:\Users\scott_jackson\Documents\Personal\Programming\lap_log.txt"
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
@@ -119,7 +121,7 @@ def test_find_unexpected_files():
 
 
 def test_find_duplicates():
-    photo_data.find_duplicates(database, database,
+    photo_data.find_and_set_duplicates(database, database,
                                test_photos_base + "\\archive", test_photos_base + "\\target")
     md5records = database.photos.find({'md5_match': {'$exists': True}})
     assert md5records.count() == 4
