@@ -43,7 +43,6 @@ import pyexiv2
 
 from photodb import MD5sums
 
-
 CONFIG = 'config'
 PHOTOS = 'photos'
 DB_STATE = 'database_state'
@@ -67,14 +66,20 @@ DIRPATHS = 'dirpaths'
 SIZE = 'size'
 USER_TAGS = 'user_tags'
 MTIME = 'mtime'
-
+_ID = "_id"
+ALL_MATCH = "all_match"
+NONE_MATCH = "none_match"
+SET = "$set"
+EXISTS = '$exists'
+OR = '$or'
 
 def main():
     t_host = 'localhost'
     t_repository = '4DAA1001519'
+    a_repository = t_repository
     # a_host = 'mongodb://192.168.1.8'
     a_host = t_host
-    a_repository = 'barney'
+    #a_repository = 'barney'
     t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures\\Uploads"
     # t_photo_dir = u"C:\\Users\\scott_jackson\\Pictures"
     # t_photo_dir = u"C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\target"
@@ -96,14 +101,23 @@ def main():
     )
 
     start = time.time()
-    database = set_up_db(a_repository, a_host)
-    no_tags, tagged = dirs_by_no_tags(database, a_photo_dir)
-    print "***NO TAGS***"
-    for path in no_tags.keys():
-        print path, no_tags[path]
-    print "***TAGS***"
-    for path in tagged.keys():
-        print path, tagged[path]
+    host = 'localhost'
+    repository = 'test_photos'
+    #test_photos_base = os.path.join(os.getcwd(), 'test_photos')  # TODO: Make this portable!
+    test_photos_base = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos"
+    database = set_up_db(repository, 'localhost')
+    a_dir = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\archive"
+    t_dir = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\target"
+    # no_tags, tagged = dirs_by_no_tags(database, a_photo_dir)
+    # print "***NO TAGS***"
+    # for path in no_tags.keys():
+    #     print path, no_tags[path]
+    # print "***TAGS***"
+    # for path in tagged.keys():
+    #     print path, tagged[path]
+    #find_and_set_duplicates(database, database, a_dir, t_dir)
+    mark_dirs_with_all_match(database, database, a_dir, t_dir)
+    print_all_match(database, t_dir)
     # extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
     # PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
     # db = set_up_db(a_collection, a_host)
@@ -135,7 +149,7 @@ def clean_user_tags(database):  # Used only to repair database from bug.
             print record[USER_TAGS]
             database.photos.update(
                 {PATH: record[PATH]},
-                {'$set': {USER_TAGS: []}}
+                {SET: {USER_TAGS: []}}
             )
     print "Done"
 
@@ -185,7 +199,7 @@ def set_up_db(repository, host='localhost', create_new=False):
         config = database[CONFIG]
         config.update(
             {CONFIG: HOST},
-            {'$set': {HOST: socket.gethostname(), COLLECTION: repository}},
+            {SET: {HOST: socket.gethostname(), COLLECTION: repository}},
             upsert=True)
         photos = database[PHOTOS]
     else:
@@ -218,7 +232,7 @@ def check_host(config):
 
 
 def check_db_clean(config):  # TODO: Check this is correct after host refactoring
-    states = config.find({DB_STATE: {'$exists': True}}).sort("_id", pymongo.DESCENDING).limit(10)
+    states = config.find({DB_STATE: {EXISTS: True}}).sort("_id", pymongo.DESCENDING).limit(10)
     if states.count() < 1:
         print "Error - database status not available; don't know if clean.  " \
               "Consider updating repository with create_new flag set"
@@ -269,25 +283,67 @@ def dirs_by_no_tags(database, top):
     return no_tag_dict, tagged_dict
 
 
-def dirs_with_all_match(database, top):  # TODO: This is a framework and is totally wrong
-    photo_directories = database.photos.find({PATH: make_tree_regex(top), ISDIR: True, DIRPATHS: []})
-    all_match_list = []
-    for directory in photo_directories:
-        user_tag_set = [
-            x['user_tags'] for x in database.photos.find(
-                {
-                    PATH: make_tree_regex(directory[PATH]),
-                    ISDIR: False
-                }
-            )
-        ]
-        cumulative_tags = set(list(itertools.chain(*user_tag_set)))
-        if cumulative_tags == set([]):
-            pass
-        else:
-            no_tag_list.append(directory)
-    return no_tag_list
+def mark_dirs_with_all_match(a_database, t_database, a_top, t_top):
+    # Unset any previous results
+    result = t_database.photos.update(
+        {},
+        {'$unset': {ALL_MATCH: '', NONE_MATCH: ''}},
+        upsert=False,
+        multi=True
+    )
+    print "clear directory match marks: {}".format(result)
 
+    #Set matching MD5 and Signatures in target database
+    find_and_set_duplicates(a_database, t_database, a_top, t_top)
+
+    #For each node see if all files and dirs are matched or if none are
+    for dirpath, dirs, files in walk_db_tree(t_database.photos, t_top, topdown=False):
+        all_match = True
+        none_match = True
+        MD5_match_list = []
+        sig_match_list = []
+        for filepath in files:  #TODO:  Can probably do with t_database.photos.find(PATH: $in: files) and get all of them, then so some fancy set stuff on the result, or at least iterate through the results and not do multiple queries
+            record = t_database.photos.find_one({PATH: filepath})
+            if record:
+                if MD5_MATCH in record:
+                    MD5_match_list.append(record[MD5_MATCH])
+                    none_match = False
+                elif SIG_MATCH in record:
+                    sig_match_list.append(record[SIG_MATCH])
+                    none_match = False
+                else:
+                    all_match = False
+            else:
+                all_match = False
+        for target_dir in dirs:
+            dirinfo = t_database.photos.find_one({PATH: target_dir})
+            all_match = all_match and dirinfo[ALL_MATCH]
+            none_match = none_match and dirinfo[NONE_MATCH]
+        t_database.photos.update({PATH: dirpath}, {SET: {ALL_MATCH: all_match, NONE_MATCH: none_match}})
+    return
+
+def print_all_match(database, top):  #TODO: Change to include call to all match function
+    match_set = database.photos.find(
+        {
+            PATH: make_tree_regex(top),
+            OR: [
+                {
+                    ALL_MATCH: {EXISTS: True},
+                    NONE_MATCH: {EXISTS: True}
+                }
+
+            ]
+        }
+    )
+    print "\nAll Match Results"
+    for match in match_set:
+        print '{}: All_match:{} None_match: {}, MD5:{}, SIG: {}'.format(\
+            match[PATH],
+            match[ALL_MATCH] if ALL_MATCH in match else '',
+            match[NONE_MATCH] if NONE_MATCH in match else '',
+            match[MD5_MATCH] if MD5_MATCH in match else '',
+            match[SIG_MATCH] if SIG_MATCH in match else ''
+        )
 
 def extract_picture_frame_set(database, top, tag, output_dir):  # TODO: Write test for this
     """
@@ -498,21 +554,18 @@ def print_unexpected_files(database, top=None):
 
 
 def find_and_set_duplicates(db_archive, db_target, top_archive=None, top_target=None):
-    print "Finding duplicates..."
-    t_regex = make_tree_regex(top_target)
-    a_regex = make_tree_regex(top_archive)
-    # Unset any previous match search
+    #TODO: Log finding duplicates
+    #  Unset any previous match search
     result = db_target.photos.update(
         {},
         {'$unset': {SIG_MATCH: '', MD5_MATCH: ''}},
         upsert=False,
         multi=True
     )
-    print "clear result: {}".format(result)
-    records = db_target.photos.find({PATH: t_regex, ISDIR: False})
-    for record in records:  #What if tops are same does this not find itself only as opposed to potential other match?
-        print "Target:{}".format(record)
-        matches = db_archive.photos.find({PATH: a_regex, SIGNATURE: record[SIGNATURE]})
+    #TODO:  Log print "clear MD5 and SIG match lists: {}".format(result)
+    records = db_target.photos.find({PATH: make_tree_regex(top_target), ISDIR: False})
+    for record in records:  #TODO:  What if tops are same does this not find itself only as opposed to potential other match?
+        matches = db_archive.photos.find({PATH: make_tree_regex(top_archive), SIGNATURE: record[SIGNATURE]})
         MD5list = []
         siglist = []
         for match in matches:
@@ -520,40 +573,52 @@ def find_and_set_duplicates(db_archive, db_target, top_archive=None, top_target=
                 pass  # skip self (happens if comparing within same host and tree)  TODO: check host too
             else:
                 if record[MD5] == match[MD5]:
-                    MD5list.append(record[PATH])
+                    MD5list.append(match[PATH])
                 else:
                     siglist.append(match[PATH])
         if MD5list:
             db_target.photos.update(
                 {PATH: record[PATH]},
-                {'$set': {MD5_MATCH: MD5list}}
+                {SET: {MD5_MATCH: MD5list}}
             )
         if siglist:
             db_target.photos.update(
                 {PATH: record[PATH]},
-                {'$set': {SIG_MATCH: siglist}}
+                {SET: {SIG_MATCH: siglist}}
             )
-    print "Done finding duplicates."
-
+    #TODO:  Get rid of the stuff below (and print above) for production
+    #TODO:  Log print "Done finding duplicates."
+    # matches = db_target.photos.find(
+    #     {
+    #         PATH: make_tree_regex(top_target),
+    #         OR: [
+    #             {MD5_MATCH: {EXISTS: True}},
+    #             {SIG_MATCH: {EXISTS: True}}
+    #         ]
+    #     }
+    # )
+    # print "Records with a match"
+    # for match in matches:
+    #     print match[PATH]
 
 def print_duplicates(db_archive, db_target, top_archive=None, top_target=None):
-    find_and_set_duplicates(db_archive, db_target, top_archive, top_target)
+    find_and_set_duplicates(db_archive, db_target, top_archive, top_target)  #TODO: Is there some way to skip this if nothing has changed?  Might be worth it if looking for matches takes a long time.
     regex = make_tree_regex(top_target)
     unique_records = db_target.photos.find(
         {
             PATH: regex,
-            MD5_MATCH: {'$exists': False},
-            SIG_MATCH: {'$exists': False}
+            MD5_MATCH: {EXISTS: False},
+            SIG_MATCH: {EXISTS: False}
         }
     )
     md5_records = db_target.photos.find(
         {
-            PATH: regex, MD5_MATCH: {'$exists': True}
+            PATH: regex, MD5_MATCH: {EXISTS: True}
         }
     )
     signature_records = db_target.photos.find(
         {
-            PATH: regex, SIG_MATCH: {'$exists': True}
+            PATH: regex, SIG_MATCH: {EXISTS: True}
         }
     )
     print("Match status for {}".format(top_target))
@@ -600,7 +665,7 @@ def print_duplicates_tree(db_archive, db_target, top_archive=None, top_target=No
                             basename(filepath), record[SIG_MATCH])
 
 
-def walk_db_tree(collection, top, topdown=True):
+def walk_db_tree(collection, top, topdown=True): #This is probably best refactored to return a DB cursor for each dir so all info is available to calling routines without doing another DB call
     record = collection.find_one(
         {PATH: top},
         {
@@ -883,7 +948,7 @@ class PhotoDb(object):
             self.photos.update(
                 {PATH: db_file[PATH]},
                 {
-                    '$set': {
+                    SET: {
                         ISDIR: False,
                         SIZE: file_stat.st_size,
                         MD5: '',
@@ -900,7 +965,7 @@ class PhotoDb(object):
         else:
             self.photos.update(
                 {PATH: db_file[PATH]},
-                {'$set': {'refresh_time': time_now()}}
+                {SET: {'refresh_time': time_now()}}
             )
 
     def _update_dir_record(self, dirpath, dirpaths, filepaths):
@@ -954,7 +1019,7 @@ class PhotoDb(object):
                     {
                         '$or': [
                             {
-                                MD5: {'$exists': False}
+                                MD5: {EXISTS: False}
                             },
                             {
                                 MD5: ''
@@ -974,7 +1039,7 @@ class PhotoDb(object):
         for n, path in enumerate(files, start=1):
             logging.info('Computing MD5 {} for: {}'.format(n, repr(path[PATH])))
             md5sum = MD5sums.fileMD5sum(path[PATH])
-            self.photos.update({PATH: path[PATH]}, {'$set': {MD5: md5sum}})
+            self.photos.update({PATH: path[PATH]}, {SET: {MD5: md5sum}})
         logging.info("Done computing missing md5 sums.")
 
     def _update_tags(self, top=None):
@@ -987,7 +1052,7 @@ class PhotoDb(object):
                 PATH: tree_regex,
                 ISDIR: False,
                 '$or': [
-                    {'got_tags': {'$exists': False}},
+                    {'got_tags': {EXISTS: False}},
                     {'got_tags': False}
                 ]
             },
@@ -1011,7 +1076,7 @@ class PhotoDb(object):
             # and if not find another signature.
             self.photos.update(
                 {PATH: photopath},
-                {'$set': {
+                {SET: {
                     USER_TAGS: user_tags,
                     'timestamp': timestamp,
                     SIGNATURE: signature,

@@ -145,3 +145,7 @@ def test_find_hybrid_dirs():
 def test_dirs_with_no_tags():
     no_tags = photo_data.dirs_by_no_tags(database, test_photos_base)
     assert len(no_tags) == 2
+
+def test_mark_dirs_with_all_match():
+    photo_data.mark_dirs_with_all_match(database, test_photos_base)
+    assert True == False
