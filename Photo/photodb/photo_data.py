@@ -25,6 +25,7 @@ data model for node in database (not all are present in a given node):
 """
 # TODO: Add logging
 # TODO: Is there a need to have 'root' defined when instantiating?
+# TODO: Consider refactor where origin database is not touched
 # Can we instantiate and then only know 'top' when 'db_sync' is called?
 # pylint: disable=line-too-long
 
@@ -33,6 +34,7 @@ import os
 import time
 import datetime
 import re
+import shutil
 import logging
 import posixpath
 import socket
@@ -291,7 +293,7 @@ def mark_dirs_with_all_match(a_database, t_database, a_top, t_top):
         upsert=False,
         multi=True
     )
-    print "clear directory match marks: {}".format(result)
+    print "clear directory match marks results: {}".format(result)
 
     #Set matching MD5 and Signatures in target database
     find_and_set_duplicates(a_database, t_database, a_top, t_top)
@@ -695,7 +697,7 @@ def tree_depth(path):
         return 0
 
 
-def print_tree(database, top):
+def print_tree(database, top, show_all_match = False):
     """Print tree from 'top' indenting each level"""
     offset = tree_depth(top)
     os_type = find_os_from_path_string(top)
@@ -798,28 +800,28 @@ class TreeStats():
                                                               1.0 - float(self.unique_md5s) / self.total_files))
 
 
-# def move_files(safe_top, path):
-# #Test for OS here
-# if _LINUX:
-# #if dir does not exist:
-# #    create dir
-# #move file to safe_top\path
-# elif WIN:
-# #if dir does not exist
-# #    create dir
-# #move file to safe_top\path
-# else:
-# print "***FAIL*** Could not determine OS."
+def move_files(safe_top, path):
+    """
+    Moves file at path to tree with root at safe_top.  Preserves full path of file.
+    :param safe_top: path to destination root
+    :param path: path to source file
+    :return:  None
+    """
 
-# def find_md5_match_dirs(host, top):
-# db, config, photos=set_up_db(host)
-# tree_regex=make_tree_regex(top)
-# dir_records=photos.find({_ISDIR: True, _DIRPATHS: empty, _FILEPATHS: not empty}, {'_id': False, _PATH: True})
-#     for dir_record in dir_records:
-#         photos.find({_ISDIR: False, _PATH: dir_record[_PATH]})
+    source_dir = os.path.dirname(path)
+    destination_dir = os.path.join(safe_top, source_dir)
+    destination_path = os.path.join(safe_top, path)
+
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+    else:
+        if not os.path.isdir(destination_dir):
+            raise(ValueError, "File exists where trying to create directory at {}".format(destination_dir))
+
+    shutil.move(path, destination_path)
 
 
-def find_hybrid_dirs(database, top):  # Broken
+def find_hybrid_dirs(database, top):  # TODO: Broken?
     # Look for dirs that have files and dirs in them (this shouldn't happen if the photo directory is clean)
     #    hybridlist=database.find({'$and': [{'$not': {_FILEPATHS: '[]'}},
     #       {'$not': {_DIRPATHS: '[]'}}]}, {_PATH: 1, _FILEPATHS: 1, _DIRPATHS: 1})
