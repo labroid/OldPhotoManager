@@ -110,6 +110,9 @@ def main():
     database = set_up_db(repository, 'localhost')
     a_dir = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\archive"
     t_dir = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\target"
+#    walk_db_tree2(database.photos, test_photos_base, topdown=True)
+#    print_tree2(database.photos, test_photos_base)
+#    sys.exit(0)
     # no_tags, tagged = dirs_by_no_tags(database, a_photo_dir)
     # print "***NO TAGS***"
     # for path in no_tags.keys():
@@ -118,8 +121,8 @@ def main():
     # for path in tagged.keys():
     #     print path, tagged[path]
     #find_and_set_duplicates(database, database, a_dir, t_dir)
-    mark_dirs_with_all_match(database, database, a_dir, t_dir)
-    print_all_match(database, t_dir)
+    mark_dirs_with_all_match(database, database, a_dir, a_dir)
+    print_all_match(database, a_dir)
     # extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
     # PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
     # db = set_up_db(a_collection, a_host)
@@ -283,6 +286,43 @@ def dirs_by_no_tags(database, top):
         else:
             tagged_dict[directory[PATH]] = cumulative_tags
     return no_tag_dict, tagged_dict
+
+def mark_dirs_with_all_match2(a_database, t_database, a_top, t_top):
+    # Unset any previous results
+    result = t_database.photos.update(
+        {},
+        {'$unset': {ALL_MATCH: '', NONE_MATCH: ''}},
+        upsert=False,
+        multi=True
+    )
+    print "clear directory match marks results: {}".format(result)
+
+    #Set matching MD5 and Signatures in target database
+    find_and_set_duplicates(a_database, t_database, a_top, t_top)
+
+    #For each node see if all files and dirs are matched or if none are
+    for dirpath_record, dirs_cursor, files_cursor in walk_db_tree2(t_database.photos, t_top, topdown=False):
+        all_match = True
+        none_match = True
+        MD5_match_list = []
+        sig_match_list = []
+        for file_record in files_cursor:
+            if file_record:
+                if MD5_MATCH in file_record:
+                    MD5_match_list.append(file_record[MD5_MATCH])
+                    none_match = False
+                elif SIG_MATCH in file_record:
+                    sig_match_list.append(file_record[SIG_MATCH])
+                    none_match = False
+                else:
+                    all_match = False
+            else:
+                all_match = False
+        for dirinfo in dirs_cursor:
+            all_match = all_match and dirinfo[ALL_MATCH]
+            none_match = none_match and dirinfo[NONE_MATCH]
+        t_database.photos.update({PATH: dirpath_record[PATH]}, {SET: {ALL_MATCH: all_match, NONE_MATCH: none_match}})
+    return
 
 
 def mark_dirs_with_all_match(a_database, t_database, a_top, t_top):
@@ -686,8 +726,26 @@ def walk_db_tree(collection, top, topdown=True): #This is probably best refactor
     if not topdown:
         yield top, record[DIRPATHS], record[FILEPATHS]
 
+def walk_db_tree2(collection, top, topdown=True, depth = None):
+    top_record = collection.find_one({PATH: top})
+    if top_record is None:
+        raise IndexError('No files found for db tree walk at {}'.format(top))
+    if depth is None:
+        depth = 0
+    else:
+        depth += 1
+    if topdown:
+        file_records = collection.find({PATH: {'$in': top_record[FILEPATHS]}})
+        dir_records = collection.find({PATH: {'$in': top_record[DIRPATHS]}})
+        yield top_record, dir_records, file_records, depth
+    for dirs in top_record[DIRPATHS]: # TODO: This winds up looking up the dirs in the db twice - not sure it matters
+        for walk_iterator in walk_db_tree2(collection, dirs, topdown, depth):
+            yield walk_iterator
+    if not topdown:
+        yield top_record, depth
 
-def tree_depth(path):
+
+def tree_depth(path):  # TODO:  Deprecated once all is refactored to walk_db_tree2
     os_type = find_os_from_path_string(path)
     if os_type == LINUX:
         return path.count('/')
@@ -696,6 +754,29 @@ def tree_depth(path):
     if os_type is None:
         return 0
 
+
+def basename_using_os(path):
+    os_type = find_os_from_path_string(path)
+    if os_type == LINUX:
+        basename = posixpath.basename(path)
+    if os_type == WINDOWS:
+        basename = ntpath.basename(path)
+    return basename
+
+
+def print_tree2(database, top, show_all_match = False):
+    """Print tree from 'top' indenting each level"""
+    indent = 4  # Number of spaces to indent printout
+    photo_count = database.photos.find({PATH: make_tree_regex(top)}).count()
+    if photo_count is None:
+        print "No files found starting at {}".format(top)
+        return
+    else:
+        print "Walking tree from: {}, {} nodes found.".format(top, photo_count)
+        for dirpath, _unused_dirs, files, depth in walk_db_tree2(database, top):
+            print '{}{}'.format(' ' * indent * depth, basename_using_os(dirpath[PATH]))
+            for f in files:
+                print '{}{}'.format(' ' * indent * depth, basename_using_os(f[PATH]))
 
 def print_tree(database, top, show_all_match = False):
     """Print tree from 'top' indenting each level"""
