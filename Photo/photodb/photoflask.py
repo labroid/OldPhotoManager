@@ -1,97 +1,75 @@
 __author__ = 'scott_jackson'
 
+import sys
+import re
 import json
-from flask import Flask, render_template
+import pymongo
+from bson.objectid import ObjectId
+from flask import Flask, render_template, request
 import photo_data
 
 app = Flask(__name__)
+database = None
+photo_base = None
+
+
+def basename(path):
+    base = re.search('.*[\\\\/](.+)$', path)
+    return base.group(1)
+
 
 @app.route('/')
-def hello():
+def root():
     print "It went to root"
-    return render_template('fancytree_example.html')
-#    return page
+    global database
+    global photo_base
+    host = 'localhost'
+    collection = 'photos'
+    database_name = 'test_photos'
+    photo_base = 'C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos\\archive'
+    database = photo_data.set_up_db(database_name, host)
+#    latest_clean_scan = database.config.find({'database_state': 'clean'}).limit(1).sort({'$natural': -1})
+#     latest_clean_scan = database.config.find({'database_state': 'clean'}).limit(1)
+#     for latest in latest_clean_scan:
+#         photo_base = latest['traverse_path']
+    return render_template('fancytree_example.html', database=database_name, host=host, collection=collection)
+
 
 @app.route('/db_init')
 def db_init():
     print "It went to db_init)"
-    return('''
-[
-  {
-    "folder": true,
-    "key": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos",
-    "title": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos"
-  },
-  {
-    "folder": true,
-    "key": "blah",
-    "title": "This is the second folder",
-    "children": [
-        {"title": "child 1", "key": "child1"},
-        {"title": "child 2", "key": "child2"}
-        ]
-  },
-  {
-    "folder": false,
-    "key": "foo",
-    "title": "foo file"
-  }
-]
-''')
-#     return('''
-# [
-#   {
-#     "folder": true,
-#     "key": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos",
-#     "title": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos"
-#   },
-#   [
-#     {
-#       "folder": true,
-#       "key": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos.archive",
-#       "title": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos.archive"
-#     },
-#     {
-#       "folder": true,
-#       "key": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos.target",
-#       "title": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos.target"
-#     }
-#   ]
-# ]
-#     ''')
-    return('[{"folder": true,"key": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos","title": "C:.Users.scott_jackson.git.PhotoManager.Photo.tests.test_photos"}]')
-#    return('[{"folder": true, "key": "Hello","title": "There"}]')
+    record = database.photos.find_one({'path': photo_base})
+    if not record:
+        raise(ValueError, "Error - nothing in database at {}".format(photo_base))
+    json_input = [{"title": record['path'], "key": str(record['_id']), "folder": record['isdir'], "lazy": True}]
+    return json.dumps(json_input)
 
-@app.route('/db', methods=['GET', 'POST'])
-def db(*args):
+
+@app.route('/db')
+def db():
     print "It went to db"
-    for n, arg in enumerate(args):
-        print "Argument {}: {}".format(n, arg)
-    database = photo_data.set_up_db('test_photos', 'localhost')
-    test_photos_base = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos"
-    #query top using db_walk
-    for top, dirpaths, filepaths in  photo_data.walk_db_tree(database.photos, test_photos_base, topdown=True):
-        json_input = [{"title": top, "key": top, "folder": True}]
-        files = []
-        dirs = []
-        for filepath in filepaths:
-            files.append({"title": filepath, "key": filepath})
-        for dirpath in dirpaths:
-            dirs.append({"title": dirpath, "key": dirpath, "folder": True})
-#        json_input.append(files)
-        json_input.append(dirs)
-        return json.dumps(json_input)
+    top_record = database.photos.find_one({'_id': ObjectId(request.args['parent'])})
+    json_input = []
+    for dir_record in database.photos.find({'path': {'$in': top_record['dirpaths']}}):  # TODO: Put paths in alphabetical order
+        if 'all_match' in dir_record and 'none_match' in dir_record:
+            if dir_record['all_match']:
+                if dir_record['none_match']:    #Empty director (other cases?)
+                    color = 'tag_blue'
+                else:                           #All simply match
+                    color = 'tag_red'
+            else:
+                if dir_record['none_match']:
+                    color = 'tag_green'         #Simple none match
+                else:
+                    color = 'tag_yellow'        #Some match, some don't
+        else:
+            color = 'purple'
+        json_input.append({'folder': True, 'lazy': True, 'key': str(dir_record['_id']), 'title': basename(dir_record['path']), 'extraClasses': color})
+    for file_record in database.photos.find({'path': {'$in': top_record['filepaths']}}):
+        json_input.append({'key': str(file_record['_id']), 'title': basename(file_record['path'])})
+    print json.dumps(json_input)
+    return json.dumps(json_input)
 
-#
-# [{"title": "Node 1", "key": "1"},
-#  {"title": "Folder 2", "key": "2", "folder": true, "children": [
-#     {"title": "Node 2.1", "key": "3"},
-#     {"title": "Node 2.2", "key": "4"}
-#   ]}
-# ]
-
-    #build json
-    #return it
 
 if __name__ == '__main__':
     app.run()

@@ -22,6 +22,8 @@ host = 'localhost'
 repository = 'test_photos'
 #test_photos_base = os.path.join(os.getcwd(), 'test_photos')  # TODO: Make this portable!
 test_photos_base = "C:\\Users\\scott_jackson\\git\\PhotoManager\\Photo\\tests\\test_photos"
+test_archive = test_photos_base + "\\archive"
+test_target = test_photos_base + "\\target"
 database = None
 
 
@@ -147,5 +149,5 @@ def test_dirs_with_no_tags():
     assert len(no_tags) == 2
 
 def test_mark_dirs_with_all_match():
-    photo_data.mark_dirs_with_all_match(database, test_photos_base)
+    photo_data.mark_dirs_with_all_match(database, database, test_archive, test_target)
     assert True == False

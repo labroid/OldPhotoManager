@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+{% extends "layout.html" %}
+{% block body %}
 <html>
 <head>
   <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
@@ -24,11 +25,9 @@
         url: "/db_init"
       },
       lazyLoad: function(event, data){
-        // we can't return values from an event handler, so we
-        // pass the result as `data`attribute.
-//              data.result = {url: "unit/ajax-sub2.json"};
         data.result = $.ajax({
           url: "/db",
+          data: {"parent": data.node.key},
           dataType: "json"
         });
       }
@@ -38,15 +37,16 @@
 </head>
 
 <body class="example">
-  <h1>Example: Initialization methods</h1>
+  <h1>Photo Explorer</h1>
 
   <p class="description">
-    This tree uses default options.<br>
+    Using database <b>{{database}}</b> hosted on <b>{{host}}</b>, collection <b>{{collection}}</b> <br>
   </p>
 
-  <p>Tree with Ajax data</p>
+<p>Photo directory tree:</p>
   <div id="tree2" data-source="ajax" class="sampletree">
   </div>
 
 </body>
 </html>
+{% endblock %}
