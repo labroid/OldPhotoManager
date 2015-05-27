@@ -1,0 +1,56 @@
+<!doctype html>
+<html ng-app="ui.bootstrap.demo">
+<head>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.js"></script>
+    <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.0.js"></script>
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div ng-controller="DropdownCtrl">
+
+    Choose host:
+    <div class="btn-group" dropdown>
+        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle ng-disabled="disabled">
+            {{selected_host.host}} <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu">
+            <li ng-repeat="host in hosts">
+                <a ng-click="selected_host.host = host">{{host}}</a>
+            </li>
+        </ul>
+    </div>
+    Choice: {{selected_host.host}}  Status: {{connect_status}}
+
+</div>
+</body>
+</html>
+
+<script>
+    angular.module('ui.bootstrap.demo', ['ui.bootstrap']);
+    angular.module('ui.bootstrap.demo').controller('DropdownCtrl', function ($scope, $log) {
+        $scope.selected_host = {host: 'localhost'}
+        $scope.hosts = [
+          'localhost',
+          'barney',
+          'smithers',
+          'google',
+          'other'
+        ]
+      $scope.connect_status = "Disconnected"
+
+      $scope.status = {
+        isopen: false
+      };
+
+      $scope.toggled = function(open) {
+        $log.log('Dropdown is now: ', open);
+      };
+
+      $scope.toggleDropdown = function($event) {
+        $event.preventDefault();
+        $event.stopPropagation();
+        $scope.status.isopen = !$scope.status.isopen;
+      };
+    });
+</script>
