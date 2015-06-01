@@ -1,13 +1,15 @@
 <!doctype html>
-<html ng-app="ui.bootstrap.demo">
+<html ng-app="ui.bootstrap.demo"> <!-- Can't change name of ng-app.  Is it important?? -->
 <head>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.js"></script>
+    <title>Photo Collection Check</title>
+    <script src="../static/lib/angular.js"></script>
     <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.0.js"></script>
+    <script src="../static/js/collection_select.js"></script>
     <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-
-<div ng-controller="DropdownCtrl">
+<h2>Photo Collection Check</h2>
+<div ng-controller="CollectionSelect">
 
     Choose host:
     <div class="btn-group" dropdown>
@@ -18,39 +20,23 @@
             <li ng-repeat="host in hosts">
                 <a ng-click="selected_host.host = host">{{host}}</a>
             </li>
+
+<!--        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle ng-disabled="disabled">
+            {{selected_host.repo}} <span class="caret"></span>
+        </button>-->
+<!--            <li ng-repeat="repo in repos">
+                <a ng-click="selected_host.repo = repo">{{repo}}</a>
+            </li>-->
         </ul>
+        <p></p>
+        <p></p>
+        <p>Choice: {{selected_host.host}}  Status: {{connect_status}}</p>
+        <!--<p>Repo:  {{selected_host.repo}}</p>-->
     </div>
-    Choice: {{selected_host.host}}  Status: {{connect_status}}
+
+    <!--<p>Repo: {{selected_host.repo}}</p>-->
 
 </div>
 </body>
 </html>
 
-<script>
-    angular.module('ui.bootstrap.demo', ['ui.bootstrap']);
-    angular.module('ui.bootstrap.demo').controller('DropdownCtrl', function ($scope, $log) {
-        $scope.selected_host = {host: 'localhost'}
-        $scope.hosts = [
-          'localhost',
-          'barney',
-          'smithers',
-          'google',
-          'other'
-        ]
-      $scope.connect_status = "Disconnected"
-
-      $scope.status = {
-        isopen: false
-      };
-
-      $scope.toggled = function(open) {
-        $log.log('Dropdown is now: ', open);
-      };
-
-      $scope.toggleDropdown = function($event) {
-        $event.preventDefault();
-        $event.stopPropagation();
-        $scope.status.isopen = !$scope.status.isopen;
-      };
-    });
-</script>
