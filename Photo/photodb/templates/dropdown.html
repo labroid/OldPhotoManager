@@ -1,9 +1,9 @@
 <!doctype html>
-<html ng-app="ui.bootstrap.demo"> <!-- Can't change name of ng-app.  Is it important?? -->
+<html ng-app="ui_select_collection">
 <head>
     <title>Photo Collection Check</title>
     <script src="../static/lib/angular.js"></script>
-    <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.0.js"></script>
+    <script src="../static/lib/ui-bootstrap-tpls-0.13.0.js"></script>
     <script src="../static/js/collection_select.js"></script>
     <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
 </head>
@@ -11,32 +11,37 @@
 <h2>Photo Collection Check</h2>
 <div ng-controller="CollectionSelect">
 
-    Choose host:
+    Choose Archive Collection:
     <div class="btn-group" dropdown>
-        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle ng-disabled="disabled">
-            {{selected_host.host}} <span class="caret"></span>
+        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle>
+            {{collection.host}}
+            <span class="caret"></span>
         </button>
         <ul class="dropdown-menu">
             <li ng-repeat="host in hosts">
-                <a ng-click="selected_host.host = host">{{host}}</a>
+                <a ng-click="collection.host = host">{{host}}</a>
             </li>
-
-<!--        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle ng-disabled="disabled">
-            {{selected_host.repo}} <span class="caret"></span>
-        </button>-->
-<!--            <li ng-repeat="repo in repos">
-                <a ng-click="selected_host.repo = repo">{{repo}}</a>
-            </li>-->
         </ul>
-        <p></p>
-        <p></p>
-        <p>Choice: {{selected_host.host}}  Status: {{connect_status}}</p>
-        <!--<p>Repo:  {{selected_host.repo}}</p>-->
     </div>
+    <div class="btn-group" dropdown>
+        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle>
+            {{collection.repo}}
+            <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu">
+            <li ng-repeat="repo in repos">
+                <a ng-click="collection.repo = repo">{{repo}}</a>
+            </li>
+        </ul>
 
-    <!--<p>Repo: {{selected_host.repo}}</p>-->
-
-</div>
+        <!--<p>Repo:  {{collection.repo}}</p>-->
+    </div>
+    <br>
+    <br>
+    <p>Choice: {{collection.host}} Status: {{connect_status}}</p>
+    <p>Repo:  {{collection.repo}}</p>
+    <p>Collection: {{collection}}</p>
+    </div>
 </body>
 </html>
 

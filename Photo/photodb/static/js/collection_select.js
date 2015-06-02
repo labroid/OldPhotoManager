@@ -1,9 +1,9 @@
 /**
  * Created by scott_jackson on 5/31/2015.
  */
-angular.module('ui.bootstrap.demo', ['ui.bootstrap']);
-angular.module('ui.bootstrap.demo').controller('CollectionSelect', function ($scope, $log) {
-    $scope.selected_host = {host: 'localhost'};
+photoApp = angular.module('ui_select_collection', ['ui.bootstrap']);
+photoApp.controller('CollectionSelect', function ($scope, $log) {
+    $scope.collection = {host: 'localhost'};
     $scope.hosts = [
       'localhost',
       'barney',
@@ -11,13 +11,14 @@ angular.module('ui.bootstrap.demo').controller('CollectionSelect', function ($sc
       'google',
       'other'
     ];
-/*    $scope.selected_host = {repo: 'barney'};
+    $scope.connect_status = "Disconnected";
+
+    $scope.collection.repo = 'barney';
     $scope.repos = [
         'smithers',
         'barney',
         'test'
-    ];*/
-  $scope.connect_status = "Disconnected";
+    ];
 
   $scope.status = {
     isopen: false
