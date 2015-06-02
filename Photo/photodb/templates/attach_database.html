@@ -8,11 +8,13 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
   <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 </head>
-<body>
-
-<div class="container">
-  <h2>Photo Collection Check</h2>
-  <p>Please enter information on database or filesystem root to use:</p>
+<body ng-app="setup_db">
+<h2>Photo Collection Check</h2>
+<div ng-app="setup_db">
+  <p>System hosting collection:</p>
+  <input ng-model="host">
+</div>
+<div ng-
   <form role="form">
     <div class="form-group">
       <label for="host">Host:</label>

@@ -13,6 +13,7 @@
 
   <script type="text/javascript">
 
+
   $(function() {
       var FT = $.ui.fancytree;
       FT.debug("Using fancytree " + FT.version);
@@ -34,6 +35,25 @@
     });
   })
   </script>
+
+  <style>
+    span.fancytree-node.tag_green .fancytree-title{
+        color: green;
+    }
+    span.fancytree-node.tag_red .fancytree-title{
+        color: red;
+    }
+    span.fancytree-node.tag_blue .fancytree-title{
+        color: blue;
+    }
+    span.fancytree-node.tag_yellow .fancytree-title{
+        color: orange;
+    }
+    body
+    {
+        background: #E0E0E0;
+    }
+  </style>
 </head>
 
 <body class="example">

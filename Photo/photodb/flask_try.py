@@ -1,63 +1,88 @@
-from flask import Flask
+from flask import Flask, render_template, request, make_response
+from flask_restful import Resource, Api, reqparse
+import photo_data
 
-    app = Flask(__name__)
+ARCHIVE_HOSTS = ['localhost', 'barney', 'smithers', 'google', 'other']  #First will be default
+ARCHIVE_DEFAULT_REPO = 'barney'
+ARCHIVE_DEFAULT_TOP = 'root'
+TARGET_HOST = ['localhost', 'barney', 'smithers', 'google', 'other']  #First will be default
+TARGET_DEFAULT_REPO = 'barney'
+TARGET_DEFAULT_TOP = 'root'
 
-    @app.route('/')
-    def root():
-        page = '''
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 
-          <script src="../static/lib/jquery.js" type="text/javascript"></script>
-          <script src="../static/lib/jquery-ui.custom.js" type="text/javascript"></script>
+archive_host_str = "archive_host"
+archive_respository_str = "archive_repository"
+archive_top_str = "archive_top"
+archive_hosts_str = "archive_hosts"
+archive_repositories_str = "archive_repositories"
 
-          <link href="../static/src/skin-win8/ui.fancytree.css" rel="stylesheet" type="text/css">
-          <script src="../static/src/jquery.fancytree.js" type="text/javascript"></script>
+app = Flask(__name__)
+api = Api(app)
 
-          <script type="text/javascript">
-            $(function(){
-              $("#tree").fancytree({
-              url: "/db",
-              cache: false
-              });
-            });
-          </script>
-        </head>
+@app.route('/')
+def root():
+    return make_response(open('templates/dropdown.html').read())  #Maybe change make_response to send_file in production as send_file is cached in the client
 
-        <body>
-          <div id="tree" data-source="ajax">
-          </div>
-        </body>
-        </html>
-        '''
-        return page
+#Browser state contains:
+#   archive_host
+#   archive_repository
+#   archive_top
+#   archive_status
+#   target_host
+#   target_repository
+#   target_top
 
-    @app.route('/db')
-    def db():
-        json_output = '''
-        [
-      {
-        "folder": true,
-        "key": "Folder 1",
-        "title": "Folder 1"
-      },
-      [
-        {
-          "folder": true,
-          "key": "Folder 2",
-          "title": "Folder 2"
-        },
-        {
-          "folder": true,
-          "key": "Folder 3",
-          "title": "Folder 3"
-        }
-      ]
-    ]
-        '''
-        return json_output
+class TestJson(Resource):
+    def post(self):
+        x = {}
+        x['host'] = 'localhost'
+        x['hosts'] = [
+            'localhost',
+            'barney',
+            'smithers',
+            'google',
+            'other'
+        ]
+        x['repo'] = 'barney'
+        x['repos'] = [
+            'smithers',
+            'barney',
+            'test'
+        ]
+        return(x)
 
-    if __name__ == '__main__':
-        app.run()
+class SetArchive(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument(archive_host_str, type=str)
+        parser.add_argument(archive_respository_str, type=str)
+        parser.add_argument(archive_top_str, type=str)
+        args = parser.parse_args()
+
+        print args
+        if args[archive_host_str] is None:
+            archive_host = ARCHIVE_HOSTS[0]
+            archive_hosts = ARCHIVE_HOSTS
+            archive_top = ARCHIVE_DEFAULT_TOP
+        else:
+            archive_host = args[archive_host_str]
+            archive_repository = args[archive_respository_str]
+            archive_top = args[archive_top_str]
+
+        archive_status, archive_repositories, archive_message = photo_data.check_host_get_repositories(archive_host)
+
+        #     Create a cursor instance to selected host
+        #     if successful:
+        #         retreive repositories
+        #         retreive tops
+        #         return archive_host, archive_hosts, archive_repo, archive_repos, archive_top, archive_tops, archive_status, repo_count, top_count
+        #     else
+        #         host not available
+        return({archive_host_str: archive_host, archive_hosts_str: archive_hosts, archive_repositories_str: archive_repositories, archive_top_str: archive_top})
+
+
+
+api.add_resource(TestJson, '/test_json')
+
+if __name__ == '__main__':
+    app.run(debug=True)

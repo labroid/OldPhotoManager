@@ -1,6 +1,7 @@
 __author__ = 'scott_jackson'
 
 import sys
+import os
 import re
 import json
 import pymongo
@@ -66,9 +67,72 @@ def db():
             color = 'purple'
         json_input.append({'folder': True, 'lazy': True, 'key': str(dir_record['_id']), 'title': basename(dir_record['path']), 'extraClasses': color})
     for file_record in database.photos.find({'path': {'$in': top_record['filepaths']}}):
-        json_input.append({'key': str(file_record['_id']), 'title': basename(file_record['path'])})
+        color = 'tag_green'
+        if 'md5_match' in file_record:
+            color = 'tag_red'
+        if 'sig_match' in file_record:
+            color = 'tag_yellow'
+        json_input.append({'key': str(file_record['_id']), 'title': basename(file_record['path']), 'extraClasses': color})
     print json.dumps(json_input)
     return json.dumps(json_input)
+
+@app.route('/choose_dir')
+default to local db, barney archive, local FS choice
+change to get otherwise
+db = "localhost"  # TODO:  Move all config stuff to external config file
+archive_collection = 'barney'
+archive_top = '/home/shared/Photos'
+mount db
+target_top = choose from FS
+
+def mount_db():
+    mount db from form
+    if success:
+        post mounted
+    else:
+        post not mounted
+        offer choice
+
+
+if event choose from FS:
+    select from FS
+
+if event change db:
+    try to mount
+if not change:
+    choose top from FS
+else:
+    where is FS?
+    if remote:
+        remote db or local db?
+        if remote:
+            mount remote db
+        else:
+            mount local db
+        choose db top
+    else: #local
+        mount local db  #Could choose to use remote db, but let's not offer that for noew
+        use db or FS?
+        if db:
+            choose db_top or new db top
+            resync db to FS
+        else:
+            choose fs top
+            resync db to FS
+
+
+mount db
+if local:
+    where is db?
+mount
+choose collection
+    choose path
+
+def choose_dir():
+    print "Choosing dir"
+    top = ObjectId(request.args['parent'])
+    if top is None:
+        drive_letters = re.findall(r'[A-Z]:', os.popen('wmic logicaldisk get caption').read())
 
 
 if __name__ == '__main__':

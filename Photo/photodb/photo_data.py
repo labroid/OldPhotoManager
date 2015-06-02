@@ -41,6 +41,7 @@ import socket
 import ntpath
 import itertools
 import pymongo
+import pymongo.errors
 import pyexiv2
 
 from photodb import MD5sums
@@ -74,6 +75,7 @@ NONE_MATCH = "none_match"
 SET = "$set"
 EXISTS = '$exists'
 OR = '$or'
+ORPHAN = 'orphan'
 
 def main():
     t_host = 'localhost'
@@ -123,6 +125,7 @@ def main():
     #find_and_set_duplicates(database, database, a_dir, t_dir)
     mark_dirs_with_all_match(database, database, a_dir, a_dir)
     print_all_match(database, a_dir)
+    print "Root directories: {}".format(find_db_roots(database))
     # extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
     # PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
     # db = set_up_db(a_collection, a_host)
@@ -165,6 +168,37 @@ def time_now():
     """
     coarse_time = datetime.datetime.now()
     return time.mktime(coarse_time.timetuple()) + coarse_time.microsecond / 1E6
+
+def check_host_get_repositories(host='localhost'):
+    """
+    Test availability of mongodb instance.
+    Return if connection available (True/False), list of collections, and connection status message
+    :param host:
+    :return: status, collections, status_message
+    """
+    if host is None:
+        error_message = "Must define host (machine name, IP address, URL, ports if necessary, etc.)"
+        logging.error(error_message)
+        return False, [], error_message
+
+    try:
+        client = pymongo.MongoClient(host)
+    except pymongo.errors.ConnectionFailure:
+        error_message = "Database connection failed on host: {}. Make sure mongod is running.".format(host)
+        logging.error(error_message)
+        return False, [], error_message
+    except:
+        error_message = "Unknown problem connecting to mongodb on {}.".format(host)
+        logging.error(error_message)
+        return False, [], error_message
+
+    try:
+        collections = client.database_names()
+    except:
+        error_message = "Problem listing repositories on host {}.".format(host)
+        logging.error(error_message)
+        return False, [], error_message
+    return True, collections, "Database available"
 
 
 def set_up_db(repository, host='localhost', create_new=False):
@@ -254,6 +288,55 @@ def check_db_clean(config):  # TODO: Check this is correct after host refactorin
         print "Error - unknown if DB clean.  Check returned state of '{}'".format(state)
         # TODO:  figure out how to recover; probably regenerate whole thing
         sys.exit(1)
+
+
+def find_db_roots(database):
+    #Make sure no node is marked as an orphan
+    result = database.photos.update(
+        {},
+        {'$set': {ORPHAN: ORPHAN}},
+        upsert=False,
+        multi=True
+    )
+    print "Set all to orphans.  Status: {}".format(result)
+
+    root_list = []
+    while True:
+        an_orphan = database.photos.find_one({ORPHAN: ORPHAN})  # Pick first file marked as orphan
+        if not an_orphan:  #Break out when you are out of orphans
+            break
+        first_iteration = True
+        while True:  #Find parents until you reach top
+            record = database.photos.find_one({
+                '$or': [
+                        {FILEPATHS: an_orphan[PATH]},
+                        {DIRPATHS: an_orphan[PATH]}
+                    ]
+                })
+            if not record:  #Break out when you find no more parents (is root or orphan)
+                if first_iteration:
+                    database.photos.update({PATH: an_orphan[PATH]}, {'$set': {ORPHAN: 'top'}})
+                    root_list.append(an_orphan[PATH])
+                    print "Found top in first iteration: {}",format(an_orphan[PATH])
+                break
+            first_iteration = False
+            database.photos.update({PATH: an_orphan[PATH]}, {'$set': {ORPHAN: False}})  #Unmark node as orphan
+            database.photos.update({PATH: record[PATH]}, {'$set': {ORPHAN: 'top'}})# Mark parent as top
+            an_orphan = record  #Set parent as new child
+            print "Moving from {} to {}:".format(an_orphan[PATH], record[PATH])
+        root_list.append(an_orphan[PATH])
+        print "Found top: {}".format(root_list)
+
+        #Clear orphan mark for all files below top
+        clear_count = 0
+        for dir, dirpaths, filepaths in walk_db_tree(database.photos, an_orphan[PATH], topdown = False):
+            for filepath in filepaths:
+                database.photos.update({PATH: filepath},{'$set': {ORPHAN: False}})
+                clear_count += 1
+            database.photos.update({PATH: dir}, {'$set': {ORPHAN: False}})
+            clear_count += 1
+        print "Cleared {} orphans in tree from {}.".format(clear_count, an_orphan[PATH])
+    return root_list
 
 
 def stat_node(nodepath):

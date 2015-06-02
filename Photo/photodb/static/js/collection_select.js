@@ -2,8 +2,11 @@
  * Created by scott_jackson on 5/31/2015.
  */
 photoApp = angular.module('ui_select_collection', ['ui.bootstrap']);
-photoApp.controller('CollectionSelect', function ($scope, $log) {
-    $scope.collection = {host: 'localhost'};
+photoApp.controller('CollectionSelect', function ($scope, $log, $http) {
+    $http.get('path/path.json').success(function(data){
+        $scope.collection = data;
+    });
+/*    $scope.collection = {host: 'localhost'};
     $scope.hosts = [
       'localhost',
       'barney',
@@ -18,7 +21,7 @@ photoApp.controller('CollectionSelect', function ($scope, $log) {
         'smithers',
         'barney',
         'test'
-    ];
+    ];*/
 
   $scope.status = {
     isopen: false
