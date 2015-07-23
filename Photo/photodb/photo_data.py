@@ -123,8 +123,8 @@ def main():
     # for path in tagged.keys():
     #     print path, tagged[path]
     #find_and_set_duplicates(database, database, a_dir, t_dir)
-    mark_dirs_with_all_match(database, database, a_dir, a_dir)
-    print_all_match(database, a_dir)
+#    mark_dirs_with_all_match(database, database, a_dir, a_dir)
+#    print_all_match(database, a_dir)
     print "Root directories: {}".format(find_db_roots(database))
     # extract_picture_frame_set(database, a_photo_dir, "SJJ Frame", "/home/scott/SJJ_Frame")
     # PhotoDb(t_host, t_repository, t_photo_dir, create_new=False).sync_db()  # TODO: Still need to test this
@@ -168,6 +168,41 @@ def time_now():
     """
     coarse_time = datetime.datetime.now()
     return time.mktime(coarse_time.timetuple()) + coarse_time.microsecond / 1E6
+
+def check_db_available(host):
+        try:
+            client = pymongo.MongoClient(host)
+            return client, "OK"
+        except pymongo.errors.ConnectionFailure:
+            error_message = "Database connection failed on host: {}. Make sure mongod is running on {}.".format(host, host)
+            logging.error(error_message)
+            return None, error_message
+        except:
+            error_message = "Unknown problem connecting to mongodb on {}.".format(host)
+            logging.error(error_message)
+            return None, error_message
+
+def get_db_collections(client):
+    try:
+        collections = client.database_names()
+        return collections, "OK"
+    except:
+        error_message = "Problem listing repositories on host {}.".format(host)
+        logging.error(error_message)
+        return [], error_message
+
+def get_db_tops(client, collection):
+    try:
+        tops = client.collection.dbstats.findone(tops)  #Fix this pseudocode
+        return tops, "OK"
+    except pymongo.errors.ConnectionFailure:
+        error_message = "Database connection failed. Make sure mongod is running on target machine."
+        logging.error(error_message)
+        return None, error_message
+    except:
+        error_message = "Unknown problem connecting to mongodb."
+        logging.error(error_message)
+        return None, error_message
 
 def check_host_get_repositories(host='localhost'):
     """
@@ -298,11 +333,13 @@ def find_db_roots(database):
         upsert=False,
         multi=True
     )
-    print "Set all to orphans.  Status: {}".format(result)
+    print "Set all nodes to orphans.  Status: {}".format(result)
 
     root_list = []
     while True:
         an_orphan = database.photos.find_one({ORPHAN: ORPHAN})  # Pick first file marked as orphan
+
+        print an_orphan
         if not an_orphan:  #Break out when you are out of orphans
             break
         first_iteration = True
@@ -320,10 +357,10 @@ def find_db_roots(database):
                     print "Found top in first iteration: {}",format(an_orphan[PATH])
                 break
             first_iteration = False
-            database.photos.update({PATH: an_orphan[PATH]}, {'$set': {ORPHAN: False}})  #Unmark node as orphan
-            database.photos.update({PATH: record[PATH]}, {'$set': {ORPHAN: 'top'}})# Mark parent as top
-            an_orphan = record  #Set parent as new child
+            print database.photos.update({PATH: an_orphan[PATH]}, {'$set': {ORPHAN: False}})  #Unmark node as orphan
+            print database.photos.update({PATH: record[PATH]}, {'$set': {ORPHAN: 'top'}})# Mark parent as top
             print "Moving from {} to {}:".format(an_orphan[PATH], record[PATH])
+            an_orphan = record  #Set parent as new child
         root_list.append(an_orphan[PATH])
         print "Found top: {}".format(root_list)
 
@@ -334,6 +371,8 @@ def find_db_roots(database):
                 database.photos.update({PATH: filepath},{'$set': {ORPHAN: False}})
                 clear_count += 1
             database.photos.update({PATH: dir}, {'$set': {ORPHAN: False}})
+            #TODO:  WHat about dirpaths??
+            #TODO:  What happens if two roots share a file?
             clear_count += 1
         print "Cleared {} orphans in tree from {}.".format(clear_count, an_orphan[PATH])
     return root_list
@@ -800,7 +839,7 @@ def walk_db_tree(collection, top, topdown=True): #This is probably best refactor
         }
     )
     if record is None:
-        raise IndexError('No files found for db tree walk at {}'.format(top))
+        raise IndexError('No files found for db tree walk at {}'.format(top))  #Maybe should return None instead of raising error...
     if topdown:
         yield top, record[DIRPATHS], record[FILEPATHS]
     for dirs in record[DIRPATHS]:
