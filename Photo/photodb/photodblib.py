@@ -17,6 +17,7 @@ __author__ = 'scott_jackson'
 #browse(archive)
 
 import mongoengine as me
+import mongoengine.context_managers as cm
 
 class Photo(me.Document):
     path = me.StringField()
@@ -45,14 +46,15 @@ class Status(me.Document):
     database_state = me.StringField
     meta = {'collection': 'config'}
 
+target = 'default'
+archive = 'archive'
+me.connect(db='test_photos', host='localhost', alias=target)
+me.connect(db='barney', host='localhost', alias=archive)
 
+photo=Photo()
+status=Status()
 
-class Photos(object):
-    def __init__(self, alias, repository, host, top, create_new=False):
-        me.connect(repository)  #TODO:  Add other arguments!
-        self.photo = Photo()
-        self.status = Status()
-
-    def list_paths(self):
-        for z in Photo.objects(isdir = False):
-            print z.isdir, z.path
+with me.context_managers.switch_db(Photo, archive):
+    print Photo.objects().count()
+#    for z in Photo.objects(isdir = False):
+#        print z.isdir, z.path
