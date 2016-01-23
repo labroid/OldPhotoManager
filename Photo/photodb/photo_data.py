@@ -43,6 +43,7 @@ import itertools
 import pymongo
 import pymongo.errors
 import pyexiv2
+import mongoengine as me
 
 from photodb import MD5sums
 
@@ -147,21 +148,6 @@ def main():
     # print "Done! - elapsed time {} seconds".format(finished)
     # sys.exit(1)
 
-
-def clean_user_tags(database):  # Used only to repair database from bug.
-    # Delete when dbs are clean and code tested
-    print "Cleaning user tags..."
-    records = database.photos.find({ISDIR: False})
-    for record in records:
-        if isinstance(record[USER_TAGS], list):
-            print record[USER_TAGS]
-            database.photos.update(
-                {PATH: record[PATH]},
-                {SET: {USER_TAGS: []}}
-            )
-    print "Done"
-
-
 def time_now():
     """
     Returns current time in seconds with microsecond resolution
@@ -172,15 +158,17 @@ def time_now():
 def check_db_available(host):
         try:
             client = pymongo.MongoClient(host)
+            logging.debug('Connected to database at {}'.format(host))
             return client, "OK"
         except pymongo.errors.ConnectionFailure:
-            error_message = "Database connection failed on host: {}. Make sure mongod is running on {}.".format(host, host)
+            error_message = "Database connection failed.  Make sure mongod is running on host at {}.".format(host)
             logging.error(error_message)
             return None, error_message
         except:
             error_message = "Unknown problem connecting to mongodb on {}.".format(host)
             logging.error(error_message)
             return None, error_message
+
 
 def get_db_collections(client):
     try:
@@ -190,6 +178,7 @@ def get_db_collections(client):
         error_message = "Problem listing repositories on host {}.".format(host)
         logging.error(error_message)
         return [], error_message
+
 
 def get_db_tops(client, collection):
     try:
@@ -246,30 +235,11 @@ def set_up_db(repository, host='localhost', create_new=False):
     'repository' is the name used for the photo repository, as opposed
     to the Mongodb repository (sorry for the confusing names)
     """
-    if host is None:
-        error_message = "Error - must define host (machine name, IP address, URL, ports if necessary, etc.)"
-        logging.error(error_message)
-        raise (ValueError(error_message))
-    try:
-        client = pymongo.MongoClient(host)
-    except pymongo.errors.ConnectionFailure:
-        error_message = "***ERROR*** Database connection failed to {}. " \
-                        "Make sure mongod is running.".format(host)
-        logging.error(error_message)
-        raise (ValueError(error_message))
-    except:
-        error_message = "Unknown problem connecting to mongodb on {}.".format(host)
-        logging.error(error_message)
-        raise (ValueError(error_message))
-    try:
-        database = client[repository]
-    except:
-        error_message = "***ERROR*** Problem connecting to database {} on host {}.".format(repository, host)
-        logging.error(error_message)
-        raise (ValueError(error_message))
-    if create_new:  # Collection creation on mongodb is implicit, so referencing them creates them
-        # if they don't exist.  With this approach we don't damage existing collections
-        # if they exist.
+#    client, message = check_db_available(host)
+    client = connect_to_host(host)
+    database = connect_to_database(client, host, repository)
+    if create_new:  # Collection creation on mongodb is implicit, so referencing a collection creates it
+        # if it dosn't exist.  With this approach we don't damage existing collections if they exist.
         config = database[CONFIG]
         config.update(
             {CONFIG: HOST},
@@ -288,6 +258,35 @@ def set_up_db(repository, host='localhost', create_new=False):
     photos.ensure_index(PATH, unique=True)
     photos.ensure_index(SIGNATURE)
     return database
+
+
+def connect_to_database(client, host, repository):
+    try:
+        database = client[repository]
+    except:
+        error_message = "***ERROR*** Problem connecting to database {} on host {}.".format(repository, host)
+        logging.error(error_message)
+        raise (ValueError(error_message))
+    return database
+
+
+def connect_to_host(host):
+    if host is None:
+        error_message = "Error - must define host (machine name, IP address, URL, ports if necessary, etc.).  Got 'None'."
+        logging.error(error_message)
+        raise (ValueError(error_message))
+    try:
+        client = pymongo.MongoClient(host)
+    except pymongo.errors.ConnectionFailure:
+        error_message = "***ERROR*** Database connection failed to {}. " \
+                        "Make sure mongod is running.".format(host)
+        logging.error(error_message)
+        raise (ValueError(error_message))
+    except:
+        error_message = "Unknown problem connecting to mongodb on {}.".format(host)
+        logging.error(error_message)
+        raise (ValueError(error_message))
+    return client
 
 
 def check_host(config):
@@ -960,6 +959,7 @@ class TreeStats():
                 }
              },
             {"$group": {"_id": "$signature"}}])
+        print type(self.signatures_iter)
         if self.signatures_iter['ok'] != 1:
             raise RuntimeError('Mongodb return code not=1.  Got: {}'.format(
                 self.signatures_iter['ok']))
@@ -978,6 +978,7 @@ class TreeStats():
                 }
             }
         ])
+        print type(self.md5_iter)
         if self.md5_iter['ok'] != 1:
             raise RuntimeError('Mongodb return code not=1.  Got: {}'.format(
                 self.signatures_iter['ok']))
@@ -1056,12 +1057,12 @@ def print_hybrid_dirs(db, top):
 
 class PhotoDb(object):
     def __init__(self, repository, top, host='localhost', create_new=False):
-        self.root = top
+        self.top = top
         self.start_time = 0  # Persistent variable for method in this class because I don't know a better way
         self.database = set_up_db(repository, host, create_new)
         self.photos = self.database.photos
         self.config = self.database.config
-        check_host(self.config)
+        check_host(self.config)  #TODO:  this disallows action if database host is not current host.  Not correct for remote databases.
         if not create_new:
             check_db_clean(self.config)
         self.sync_db()
@@ -1070,8 +1071,7 @@ class PhotoDb(object):
         """
         Sync contents of database with filesystem starting at 'top'
         """
-        if top is None:
-            top = self.root
+        top = top or self.top
         self._mark_db_status('dirty')
         self._traverse_fs(top)
         self._update_md5(top)
@@ -1081,7 +1081,7 @@ class PhotoDb(object):
 
     def _prune_db(self, top):
         logging.info("Pruning from database nodes no longer in filesystem...")
-        top = self.root if top is None else top
+        top = self.top if top is None else top
         time.sleep(1)  # Wait a second to make double-dog sure mongodb is caught up
         most_recent_records = self.config.find().sort(FS_TRAVERSE_TIME, pymongo.DESCENDING).limit(10)
         if most_recent_records.count() < 1:
@@ -1112,13 +1112,13 @@ class PhotoDb(object):
             self.config.insert({
                 DB_STATE: 'dirty',
                 FS_TRAVERSE_TIME: time_now(),
-                TRAVERSE_PATH: self.root
+                TRAVERSE_PATH: self.top
             })
         elif status == 'clean':
             self.config.insert({
                 DB_STATE: 'clean',
                 FS_TRAVERSE_TIME: time_now(),
-                TRAVERSE_PATH: self.root
+                TRAVERSE_PATH: self.top
             })
         else:
             error_message = "Error: bad database status received.  Got: '{}'".format(status)
@@ -1191,7 +1191,7 @@ class PhotoDb(object):
             upsert=True)  # Replace existing record - TODO: wipe out previous sum data, if the record exists
 
     def _traverse_fs(self, top=None):
-        top = self.root if top is None else top
+        top = top or self.top
         logging.info("Traversing filesystem tree starting at {}...".format(top))
         if os.path.isfile(top):
             self._update_file_record(top)
@@ -1210,7 +1210,7 @@ class PhotoDb(object):
 
     def _update_md5(self, top=None):
         logging.info("Computing missing md5 sums...")
-        top = self.root if top is None else top
+        top = top or self.top
         regex = make_tree_regex(top)
         files = self.photos.find(
             {
@@ -1238,7 +1238,7 @@ class PhotoDb(object):
                 '_id': False,
                 PATH: True
             },
-            timeout=False
+            no_cursor_timeout=True
         )
         logging.info("Number of files for MD5 update: {}".format(files.count()))
         for n, path in enumerate(files, start=1):
@@ -1250,7 +1250,7 @@ class PhotoDb(object):
     def _update_tags(self, top=None):
         logging.info('Updating file tags...')
         if top is None:
-            top = self.root
+            top = self.top
         tree_regex = make_tree_regex(top)
         files = self.photos.find(
             {
@@ -1264,7 +1264,7 @@ class PhotoDb(object):
             {
                 '_id': False, PATH: True
             },
-            timeout=False)
+            no_cursor_timeout=True)
         total_files = files.count()
         for file_count, photo_record in enumerate(files, start=1):
             self._monitor_tag_progress(total_files, file_count)
@@ -1296,7 +1296,7 @@ class PhotoDb(object):
         progress_count = 500  # How often to report progress in units of files
         if file_count == 1:  # First call; initialize
             self.start_time = time_now()
-            logging.info("Extracting tags for {0}.  File count={1}".format(repr(self.root), total_files))
+            logging.info("Extracting tags for {0}.  File count={1}".format(repr(self.top), total_files))
         if not file_count % progress_count:
             elapsed_time = time_now() - self.start_time
             total_time_projected = float(elapsed_time) / float(file_count) * total_files

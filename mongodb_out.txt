@@ -1,7 +1,0 @@
-Total number of photos: 135568
-Total number of directories: 2751
-Total number of unique photos: 80032
-Do an aggregation pipeline
-Number unique duplicated files: 11444
-[{u'nodeCount': 2.0, u'totals': 8711.0}, {u'nodeCount': 3.0, u'totals': 2438.0}, {u'nodeCount': 5.0, u'totals': 43.0}, {u'nodeCount': 4.0, u'totals': 245.0}, {u'nodeCount': 21.0, u'totals': 1.0}, {u'nodeCount': 8.0, u'totals': 1.0}, {u'nodeCount': 6.0, u'totals': 5.0}]
-Done

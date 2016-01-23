@@ -46,7 +46,7 @@ class Status(me.Document):
     database_state = me.StringField
     meta = {'collection': 'config'}
 
-target = 'default'
+target = 'target'
 archive = 'archive'
 me.connect(db='test_photos', host='localhost', alias=target)
 me.connect(db='barney', host='localhost', alias=archive)

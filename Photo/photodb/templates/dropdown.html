@@ -19,24 +19,22 @@
         </button>
         <ul class="dropdown-menu">
             <li ng-repeat="host in hosts">
-                <a ng-click="collection.host = host">{{host}}</a>
+                <a ng-click="select_host()">{{host}}</a>
             </li>
         </ul>
     </div>
-    <div class="btn-group" dropdown>
-        <button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle>
-            {{collection.repo}}
-            <span class="caret"></span>
-        </button>
-        <ul class="dropdown-menu">
-            <li ng-repeat="repo in repos">
-                <a ng-click="collection.repo = repo">{{repo}}</a>
-            </li>
-        </ul>
-
-        <!--<p>Repo:  {{collection.repo}}</p>-->
-    </div>
-    <br>
+    <!--<div class="btn-group" dropdown>-->
+        <!--<button type="button" class="btn btn-default dropdown-toggle" dropdown-toggle>-->
+            <!--{{collection.repo}}-->
+            <!--<span class="caret"></span>-->
+        <!--</button>-->
+        <!--<ul class="dropdown-menu">-->
+            <!--<li ng-repeat="repo in repos">-->
+                <!--<a ng-click="collection.repo = repo">{{repo}}</a>-->
+            <!--</li>-->
+        <!--</ul>-->
+    <!--</div>-->
+    <!--<br>-->
     <br>
     <p>Choice: {{collection.host}} Status: {{connect_status}}</p>
     <p>Repo:  {{collection.repo}}</p>
